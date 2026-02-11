@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react"
+
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import type {
@@ -10,7 +12,6 @@ import type {
 import { generateStellarHash, generateTransactionId } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -21,6 +22,9 @@ import {
   Loader2,
   XCircle,
   Lock,
+  Banknote,
+  Globe,
+  Landmark,
 } from "lucide-react";
 
 interface TransactionExecutionProps {
@@ -30,36 +34,42 @@ interface TransactionExecutionProps {
   onComplete: (tx: Transaction) => void;
 }
 
-const STEPS = [
+const BASE_STEPS = [
   {
     key: "init",
     label: "Initializing transfer",
     description: "Connecting to anchors...",
+    icon: Globe,
   },
   {
     key: "onramp",
     label: "On-ramp processing",
     description: "Depositing funds via origin anchor...",
+    icon: Banknote,
   },
   {
     key: "escrow",
     label: "Escrow verification",
     description: "Securing funds in programmatic escrow...",
+    icon: Shield,
   },
   {
     key: "bridge",
     label: "Stellar bridge",
     description: "Transferring via Stellar network...",
+    icon: Globe,
   },
   {
     key: "offramp",
     label: "Off-ramp settlement",
     description: "Delivering to destination anchor...",
+    icon: Landmark,
   },
   {
     key: "complete",
     label: "Transfer complete",
     description: "Funds delivered successfully",
+    icon: CheckCircle2,
   },
 ];
 
@@ -76,27 +86,22 @@ export function TransactionExecution({
   const [stellarHash] = useState(() => generateStellarHash());
 
   const stepsToShow = route.escrow
-    ? STEPS
-    : STEPS.filter((s) => s.key !== "escrow");
+    ? BASE_STEPS
+    : BASE_STEPS.filter((s) => s.key !== "escrow");
 
   const progress = Math.round((currentStep / (stepsToShow.length - 1)) * 100);
   const isComplete = currentStep === stepsToShow.length - 1;
 
   useEffect(() => {
     if (!started || isComplete || failed) return;
-
-    const delay = 800 + Math.random() * 1200;
+    const delay = 900 + Math.random() * 1200;
     const timer = setTimeout(() => {
-      if (
-        stepsToShow[currentStep]?.key === "bridge" &&
-        Math.random() < 0.05
-      ) {
+      if (stepsToShow[currentStep]?.key === "bridge" && Math.random() < 0.05) {
         setFailed(true);
         return;
       }
       setCurrentStep((prev) => prev + 1);
     }, delay);
-
     return () => clearTimeout(timer);
   }, [started, currentStep, isComplete, failed, stepsToShow]);
 
@@ -118,7 +123,6 @@ export function TransactionExecution({
       stellarTxHash: stellarHash,
       status: "verified",
     };
-
     const tx: Transaction = {
       id: txId,
       route,
@@ -129,29 +133,33 @@ export function TransactionExecution({
       stellarTxHash: stellarHash,
       proofOfPayment: pop,
     };
-
     onComplete(tx);
   }, [txId, amount, route, stellarHash, onComplete]);
 
   return (
-    <Card className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-background/50">
+    <Card className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/5">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-4">
         <div className="flex items-center gap-3">
-          <Image
-            src="/isotipo.png"
-            alt="POP"
-            width={24}
-            height={24}
-            className="rounded-md"
-          />
+          <div className="relative">
+            <div className="absolute -inset-1 rounded-lg bg-primary/20 blur-md" />
+            <Image
+              src="/isotipo.png"
+              alt="POP"
+              width={28}
+              height={28}
+              className="relative rounded-md"
+            />
+          </div>
           <div>
             <h2 className="text-base font-bold text-foreground">
               {isComplete
                 ? "Transfer Complete"
                 : failed
                   ? "Transfer Failed"
-                  : "Processing Transfer"}
+                  : started
+                    ? "Processing Transfer"
+                    : "Confirm Transfer"}
             </h2>
             <p className="font-mono text-[10px] text-muted-foreground">
               {txId}
@@ -162,7 +170,7 @@ export function TransactionExecution({
           <Button
             variant="ghost"
             onClick={onBack}
-            className="gap-1 text-muted-foreground hover:text-foreground"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
             size="sm"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -171,34 +179,34 @@ export function TransactionExecution({
         )}
       </div>
 
-      {/* Route summary */}
-      <div className="border-b border-border bg-muted/20 px-5 py-4">
-        <div className="flex flex-col items-center gap-3 text-center md:flex-row md:justify-between md:text-left">
+      {/* Route summary bar */}
+      <div className="border-b border-border bg-muted/10 px-5 py-4">
+        <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-between md:text-left">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Sending
             </p>
-            <p className="text-xl font-bold text-foreground">
+            <p className="text-2xl font-bold tabular-nums text-foreground">
               {amount.toLocaleString()}{" "}
               <span className="text-sm font-normal text-muted-foreground">
                 {route.originCurrency}
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">
+          <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">
               {route.originAnchor.name}
             </span>
-            <ArrowRight className="h-3 w-3" />
-            <span className="font-medium text-foreground">
+            <ArrowRight className="h-3.5 w-3.5 text-primary" />
+            <span className="font-semibold text-foreground">
               {route.destinationAnchor.name}
             </span>
           </div>
           <div className="md:text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Recipient gets
             </p>
-            <p className="text-xl font-bold text-primary">
+            <p className="text-2xl font-bold tabular-nums text-primary">
               {route.receivedAmount.toLocaleString()}{" "}
               <span className="text-sm font-normal text-muted-foreground">
                 {route.destinationCurrency}
@@ -209,41 +217,32 @@ export function TransactionExecution({
       </div>
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-5 md:p-6">
         {!started ? (
-          <div className="flex flex-col items-center gap-5 py-4">
-            {/* Summary card */}
-            <div className="w-full rounded-xl border border-border bg-muted/20 p-4">
-              <div className="flex flex-col gap-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fee</span>
-                  <span className="font-medium text-foreground">
-                    {route.feeAmount.toFixed(2)} {route.originCurrency} (
-                    {route.feePercentage}%)
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Exchange rate</span>
-                  <span className="font-medium text-foreground">
-                    1 {route.originCurrency} = {route.exchangeRate}{" "}
-                    {route.destinationCurrency}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Est. time</span>
-                  <span className="flex items-center gap-1 font-medium text-foreground">
-                    <Clock className="h-3 w-3" />
-                    {route.estimatedTime}
-                  </span>
-                </div>
+          /* Pre-confirmation view */
+          <div className="flex flex-col items-center gap-6 py-2">
+            <div className="w-full rounded-xl border border-border bg-muted/20 p-5">
+              <div className="flex flex-col gap-3.5 text-sm">
+                <SummaryRow
+                  label="Fee"
+                  value={`${route.feeAmount.toFixed(2)} ${route.originCurrency} (${route.feePercentage}%)`}
+                />
+                <SummaryRow
+                  label="Exchange rate"
+                  value={`1 ${route.originCurrency} = ${route.exchangeRate} ${route.destinationCurrency}`}
+                />
+                <SummaryRow
+                  label="Est. time"
+                  value={route.estimatedTime}
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                />
                 {route.escrow && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Protection</span>
-                    <span className="flex items-center gap-1 font-medium text-primary">
-                      <Shield className="h-3 w-3" />
-                      Escrow enabled
-                    </span>
-                  </div>
+                  <SummaryRow
+                    label="Protection"
+                    value="Escrow enabled"
+                    icon={<Shield className="h-3.5 w-3.5 text-primary" />}
+                    valueClassName="text-primary"
+                  />
                 )}
               </div>
             </div>
@@ -251,9 +250,9 @@ export function TransactionExecution({
             <Button
               onClick={() => setStarted(true)}
               className={cn(
-                "h-14 w-full max-w-xs rounded-xl bg-primary text-base font-bold text-primary-foreground",
+                "h-14 w-full max-w-sm rounded-xl bg-primary text-base font-bold text-primary-foreground",
                 "transition-all duration-200",
-                "hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/25",
+                "hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/30",
                 "active:scale-[0.98]",
                 "glow-pulse"
               )}
@@ -262,32 +261,44 @@ export function TransactionExecution({
               <Lock className="mr-2 h-4 w-4" />
               Confirm & Send
             </Button>
-            <p className="text-center text-[10px] text-muted-foreground">
-              By confirming, you agree to execute this transfer via the selected
-              route.
+            <p className="max-w-xs text-center text-[10px] leading-relaxed text-muted-foreground">
+              By confirming, you agree to execute this transfer through the
+              selected anchors via the Stellar network.
             </p>
           </div>
         ) : (
+          /* Execution progress view */
           <div className="flex flex-col gap-5">
-            <Progress value={progress} className="h-2" />
+            {/* Progress bar */}
+            <div className="relative h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out",
+                  failed ? "bg-destructive" : isComplete ? "bg-success" : "bg-primary"
+                )}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
 
-            <div className="flex flex-col gap-3">
+            {/* Step list */}
+            <div className="flex flex-col gap-2">
               {stepsToShow.map((step, index) => {
                 const isActive = index === currentStep && !isComplete;
                 const isDone = index < currentStep || isComplete;
                 const isFailed = failed && index === currentStep;
+                const StepIcon = step.icon;
 
                 return (
                   <div
                     key={step.key}
                     className={cn(
-                      "flex items-start gap-3 rounded-lg p-3 transition-all duration-300",
-                      isActive && "bg-primary/5 border border-primary/20",
-                      isDone && "opacity-70",
-                      isFailed && "bg-destructive/5 border border-destructive/20"
+                      "flex items-center gap-4 rounded-xl px-4 py-3 transition-all duration-300",
+                      isActive && "bg-primary/5 ring-1 ring-primary/20",
+                      isDone && "opacity-60",
+                      isFailed && "bg-destructive/5 ring-1 ring-destructive/20"
                     )}
                   >
-                    <div className="mt-0.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
                       {isFailed ? (
                         <XCircle className="h-5 w-5 text-destructive" />
                       ) : isDone ? (
@@ -295,16 +306,16 @@ export function TransactionExecution({
                       ) : isActive ? (
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       ) : (
-                        <div className="h-5 w-5 rounded-full border-2 border-border" />
+                        <StepIcon className="h-5 w-5 text-muted-foreground/40" />
                       )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p
                         className={cn(
-                          "text-sm font-medium",
+                          "text-sm font-semibold",
                           isDone || isActive
                             ? "text-foreground"
-                            : "text-muted-foreground"
+                            : "text-muted-foreground/50"
                         )}
                       >
                         {step.label}
@@ -312,30 +323,36 @@ export function TransactionExecution({
                       {(isActive || isFailed) && (
                         <p
                           className={cn(
-                            "text-xs",
+                            "mt-0.5 text-xs",
                             isFailed
                               ? "text-destructive"
                               : "text-muted-foreground"
                           )}
                         >
                           {isFailed
-                            ? "An error occurred. Please try again."
+                            ? "An error occurred. Please retry or choose another route."
                             : step.description}
                         </p>
                       )}
                     </div>
+                    {isDone && (
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        Done
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
 
+            {/* Completion CTA */}
             {isComplete && (
               <Button
                 onClick={handleComplete}
                 className={cn(
                   "mt-2 h-14 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground",
                   "transition-all duration-200",
-                  "hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/25",
+                  "hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/30",
                   "active:scale-[0.98]"
                 )}
                 size="lg"
@@ -345,6 +362,7 @@ export function TransactionExecution({
               </Button>
             )}
 
+            {/* Failure CTAs */}
             {failed && (
               <div className="flex gap-3">
                 <Button
@@ -362,7 +380,7 @@ export function TransactionExecution({
                   }}
                   className="flex-1 rounded-xl bg-primary text-primary-foreground"
                 >
-                  Retry
+                  Retry Transfer
                 </Button>
               </div>
             )}
@@ -370,5 +388,32 @@ export function TransactionExecution({
         )}
       </div>
     </Card>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  icon,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "flex items-center gap-1.5 font-medium text-foreground",
+          valueClassName
+        )}
+      >
+        {icon}
+        {value}
+      </span>
+    </div>
   );
 }

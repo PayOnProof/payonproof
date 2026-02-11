@@ -18,10 +18,6 @@ export const metadata: Metadata = {
   title: "POP - Pay On Proof | International Remittance Orchestrator",
   description:
     "Compare routes, execute secure transfers via Stellar, and generate verifiable Proof of Payment for every international remittance.",
-  icons: {
-    icon: "/isotipo.png",
-    apple: "/isotipo.png",
-  },
 };
 
 export const viewport: Viewport = {

@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,13 +47,22 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [copied, setCopied] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const navLinks = variant === "app" ? APP_NAV : LANDING_NAV;
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 50);
+
+      // Calculate scroll progress
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (docHeight > 0) {
+        setScrollProgress((window.scrollY / docHeight) * 100);
+      }
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -88,26 +96,43 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
 
   return (
     <>
+      {/* Scroll progress bar */}
+      {variant === "landing" && (
+        <div
+          className="scroll-progress"
+          style={{ width: `${scrollProgress}%` }}
+          aria-hidden="true"
+        />
+      )}
+
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 z-40 transition-all duration-300",
+          "fixed top-0 left-0 right-0 z-40 transition-all duration-500 ease-[cubic-bezier(0.65,0,0.35,1)]",
           scrolled
-            ? "border-b border-border bg-background/90 backdrop-blur-xl shadow-lg shadow-background/50"
-            : "bg-background/60 backdrop-blur-sm"
+            ? "border-b border-border/50 bg-[rgba(0,0,0,0.8)] backdrop-blur-xl shadow-lg shadow-black/20"
+            : "bg-transparent"
         )}
       >
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8">
+        <nav
+          className={cn(
+            "mx-auto flex max-w-7xl items-center justify-between px-4 lg:px-8 transition-all duration-500",
+            scrolled ? "py-2" : "py-4"
+          )}
+        >
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2.5 text-xl font-bold text-foreground transition-opacity hover:opacity-80"
+            className="flex items-center gap-2.5 text-xl font-bold text-foreground transition-opacity duration-300 hover:opacity-80"
           >
             <Image
               src="/isotipo.png"
               alt="POP logo"
               width={36}
               height={36}
-              className="rounded-lg"
+              className={cn(
+                "rounded-lg transition-all duration-500",
+                scrolled ? "h-8 w-8" : "h-9 w-9"
+              )}
             />
             <span className="tracking-tight">POP</span>
           </Link>
@@ -177,7 +202,7 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
                       tabIndex={-1}
                       aria-hidden="true"
                     />
-                    <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-xl shadow-background/50 animate-fade-in-scale">
+                    <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-xl shadow-black/30 animate-fade-in-scale">
                       <div className="mb-2 border-b border-border px-3 py-2">
                         <p className="text-xs text-muted-foreground">
                           Connected
@@ -232,10 +257,10 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
                   setModalOpen(true);
                 }}
                 className={cn(
-                  "ripple-container flex items-center gap-2 rounded-xl px-5 py-2.5",
+                  "ripple-container btn-shimmer flex items-center gap-2 rounded-xl px-5 py-2.5",
                   "bg-primary text-primary-foreground font-medium text-sm",
                   "transition-all duration-200",
-                  "hover:scale-105 hover:shadow-lg hover:shadow-primary/25",
+                  "hover:scale-105 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5",
                   "active:scale-[0.98] active:shadow-sm",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "glow-pulse"
@@ -270,7 +295,7 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-border bg-card/95 backdrop-blur-xl md:hidden animate-fade-in-up">
+          <div className="border-t border-border/50 bg-[rgba(0,0,0,0.9)] backdrop-blur-xl md:hidden animate-fade-in-up">
             <div className="flex flex-col gap-1 px-4 py-4">
               {navLinks.map((link) =>
                 link.href.startsWith("#") ? (

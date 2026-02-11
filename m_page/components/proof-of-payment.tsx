@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-
 import type { Transaction } from "@/lib/mock-data";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -15,8 +14,9 @@ import {
   Share2,
   ArrowRight,
   ExternalLink,
+  Send,
 } from "lucide-react";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 interface ProofOfPaymentProps {
@@ -29,7 +29,6 @@ export function ProofOfPaymentView({
   onNewTransfer,
 }: ProofOfPaymentProps) {
   const [copied, setCopied] = useState<string | null>(null);
-  const popRef = useRef<HTMLDivElement>(null);
   const pop = transaction.proofOfPayment;
 
   const copyToClipboard = useCallback(
@@ -83,75 +82,79 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
   return (
     <div className="flex flex-col gap-6 animate-fade-in-up">
       {/* Success banner */}
-      <div className="flex items-center gap-3 rounded-2xl border border-success/20 bg-success/5 p-4">
-        <CheckCircle2 className="h-6 w-6 shrink-0 text-success" />
+      <div className="flex items-center gap-4 rounded-2xl border border-success/20 bg-success/5 p-5">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-success/10">
+          <CheckCircle2 className="h-6 w-6 text-success" />
+        </div>
         <div>
-          <p className="font-bold text-foreground">Payment Verified</p>
+          <p className="text-lg font-bold text-foreground">
+            Payment Verified
+          </p>
           <p className="text-sm text-muted-foreground">
             Your transfer was completed and verified on the Stellar network.
           </p>
         </div>
       </div>
 
-      {/* POP Card */}
-      <Card
-        ref={popRef}
-        className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-background/50"
-      >
-        {/* Header with logo */}
-        <div className="flex items-center justify-between border-b border-primary/20 bg-primary px-5 py-4">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/isotipo.png"
-              alt="POP"
-              width={28}
-              height={28}
-              className="rounded-md brightness-200"
-            />
-            <span className="text-lg font-bold text-primary-foreground">
-              Proof of Payment
-            </span>
+      {/* POP Document Card */}
+      <Card className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/5">
+        {/* Branded header */}
+        <div className="relative overflow-hidden border-b border-primary/30 bg-primary px-6 py-5">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(263_70%_70%_/_0.3),_transparent_60%)]"
+            aria-hidden="true"
+          />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/isotipo.png"
+                alt="POP"
+                width={32}
+                height={32}
+                className="rounded-lg brightness-200"
+              />
+              <span className="text-xl font-bold text-primary-foreground">
+                Proof of Payment
+              </span>
+            </div>
+            <Badge className="border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground backdrop-blur-sm">
+              <CheckCircle2 className="mr-1.5 h-3 w-3" />
+              Verified
+            </Badge>
           </div>
-          <Badge className="border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground">
-            <CheckCircle2 className="mr-1 h-3 w-3" />
-            Verified
-          </Badge>
         </div>
 
-        {/* Body */}
-        <div className="p-5">
-          {/* Transfer summary */}
-          <div className="mb-5 flex flex-col items-center gap-3 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Transfer amount
-            </p>
-            <div className="flex items-center gap-5">
-              <div>
-                <p className="text-3xl font-bold text-foreground">
-                  {pop.originAmount.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {pop.originCurrency}
-                </p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <ArrowRight className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-primary">
-                  {pop.destinationAmount.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {pop.destinationCurrency}
-                </p>
-              </div>
+        {/* Transfer summary */}
+        <div className="border-b border-border bg-muted/10 px-6 py-6">
+          <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Transfer Amount
+          </p>
+          <div className="flex items-center justify-center gap-5">
+            <div className="text-center">
+              <p className="text-3xl font-bold tabular-nums text-foreground">
+                {pop.originAmount.toLocaleString()}
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-muted-foreground">
+                {pop.originCurrency}
+              </p>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+              <ArrowRight className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold tabular-nums text-primary">
+                {pop.destinationAmount.toLocaleString()}
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-muted-foreground">
+                {pop.destinationCurrency}
+              </p>
             </div>
           </div>
+        </div>
 
-          <Separator className="my-4" />
-
-          {/* Details */}
-          <div className="flex flex-col gap-3">
+        {/* Details grid */}
+        <div className="p-6">
+          <div className="flex flex-col gap-3.5">
             <DetailRow label="Transaction ID" value={transaction.id}>
               <CopyButton
                 text={transaction.id}
@@ -161,7 +164,7 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
               />
             </DetailRow>
             <DetailRow
-              label="Date"
+              label="Date & Time"
               value={new Date(pop.timestamp).toLocaleString()}
             />
             <DetailRow label="Route" value={pop.route} />
@@ -176,12 +179,13 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
 
             <Separator className="my-2" />
 
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Stellar Transaction
+            {/* Stellar hash section */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Blockchain Verification
               </span>
               <div className="flex items-center gap-2">
-                <code className="flex-1 break-all rounded-lg bg-muted px-3 py-2 font-mono text-xs text-foreground">
+                <code className="flex-1 break-all rounded-xl border border-border bg-muted/30 px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
                   {pop.stellarTxHash}
                 </code>
                 <CopyButton
@@ -195,7 +199,10 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
                 href={`https://stellar.expert/explorer/public/tx/${pop.stellarTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 flex items-center gap-1 text-xs text-primary transition-colors hover:text-primary/80 hover:underline"
+                className={cn(
+                  "mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary",
+                  "transition-colors duration-200 hover:text-primary/80 hover:underline"
+                )}
               >
                 View on Stellar Explorer
                 <ExternalLink className="h-3 w-3" />
@@ -205,20 +212,20 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
         </div>
       </Card>
 
-      {/* Actions */}
-      <div className="flex flex-col gap-3 sm:flex-row">
+      {/* Action buttons */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Button
           onClick={handleDownload}
           variant="outline"
           className={cn(
-            "flex-1 gap-2 rounded-xl bg-transparent",
+            "gap-2 rounded-xl bg-transparent",
             "transition-all duration-200",
-            "hover:scale-[1.02] hover:shadow-md",
+            "hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30",
             "active:scale-[0.98]"
           )}
         >
           <Download className="h-4 w-4" />
-          Download Proof
+          Download
         </Button>
         <Button
           onClick={() => {
@@ -229,16 +236,16 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
               });
             } else {
               copyToClipboard(
-                `POP Proof of Payment: ${transaction.id} | ${pop.originAmount} ${pop.originCurrency} -> ${pop.destinationAmount} ${pop.destinationCurrency}`,
+                `POP Proof: ${transaction.id} | ${pop.originAmount} ${pop.originCurrency} -> ${pop.destinationAmount} ${pop.destinationCurrency} | Hash: ${pop.stellarTxHash}`,
                 "share"
               );
             }
           }}
           variant="outline"
           className={cn(
-            "flex-1 gap-2 rounded-xl bg-transparent",
+            "gap-2 rounded-xl bg-transparent",
             "transition-all duration-200",
-            "hover:scale-[1.02] hover:shadow-md",
+            "hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30",
             "active:scale-[0.98]"
           )}
         >
@@ -248,18 +255,21 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
         <Button
           onClick={onNewTransfer}
           className={cn(
-            "flex-1 gap-2 rounded-xl bg-primary text-primary-foreground",
+            "gap-2 rounded-xl bg-primary text-primary-foreground",
             "transition-all duration-200",
-            "hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/25",
+            "hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/30",
             "active:scale-[0.98]"
           )}
         >
+          <Send className="h-4 w-4" />
           New Transfer
         </Button>
       </div>
     </div>
   );
 }
+
+/* ---- Sub-components ---- */
 
 function DetailRow({
   label,
@@ -271,8 +281,8 @@ function DetailRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
       <div className="flex items-center gap-1.5">
         <span className="text-right text-sm font-medium text-foreground">
           {value}
@@ -299,7 +309,7 @@ function CopyButton({
       type="button"
       onClick={() => onCopy(text, label)}
       className={cn(
-        "rounded-md p-1.5 text-muted-foreground",
+        "shrink-0 rounded-lg p-2 text-muted-foreground",
         "transition-all duration-150",
         "hover:bg-muted hover:text-foreground",
         "active:scale-90"

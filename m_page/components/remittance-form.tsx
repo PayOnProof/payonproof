@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react"
+
 import { useState, useCallback } from "react";
 import Image from "next/image";
-import { ArrowDownUp, Search } from "lucide-react";
+import { ArrowDownUp, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CountrySelector } from "@/components/country-selector";
@@ -16,10 +18,12 @@ interface RemittanceFormProps {
 
 export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
   const [origin, setOrigin] = useState("US");
-  const [destination, setDestination] = useState("MX");
+  const [destination, setDestination] = useState("CO");
   const [amount, setAmount] = useState("500");
 
   const originCountry = COUNTRIES.find((c) => c.code === origin);
+  const parsedAmount = Number.parseFloat(amount) || 0;
+  const isValid = parsedAmount > 0 && origin && destination && origin !== destination;
 
   const handleSwap = useCallback(() => {
     setOrigin(destination);
@@ -27,33 +31,47 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
   }, [origin, destination]);
 
   const handleSubmit = useCallback(() => {
-    const numAmount = Number.parseFloat(amount);
-    if (numAmount > 0 && origin && destination) {
-      onSearch(origin, destination, numAmount);
+    if (isValid) {
+      onSearch(origin, destination, parsedAmount);
     }
-  }, [amount, origin, destination, onSearch]);
+  }, [isValid, amount, origin, destination, onSearch, parsedAmount]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && isValid && !loading) {
+        handleSubmit();
+      }
+    },
+    [isValid, loading, handleSubmit]
+  );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-background/50">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/5">
       {/* Card Header */}
-      <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-6 py-4">
-        <Image
-          src="/isotipo.png"
-          alt="POP"
-          width={28}
-          height={28}
-          className="rounded-md"
-        />
+      <div className="flex items-center gap-3 border-b border-border bg-muted/20 px-6 py-5">
+        <div className="relative">
+          <div className="absolute -inset-1 rounded-xl bg-primary/20 blur-md" />
+          <Image
+            src="/isotipo.png"
+            alt="POP"
+            width={32}
+            height={32}
+            className="relative rounded-lg"
+          />
+        </div>
         <div>
-          <h2 className="text-lg font-bold text-foreground">Send Money</h2>
+          <h2 className="text-lg font-bold tracking-tight text-foreground">
+            Send Money
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Compare the best routes for your international transfer
+            Compare the best routes for your transfer
           </p>
         </div>
       </div>
 
       {/* Form Body */}
-      <div className="flex flex-col gap-5 p-6">
+      <div className="flex flex-col gap-5 p-6" onKeyDown={handleKeyDown}>
+        {/* Origin country */}
         <CountrySelector
           value={origin}
           onValueChange={setOrigin}
@@ -61,16 +79,17 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
           exclude={destination}
         />
 
-        <div className="flex justify-center">
+        {/* Swap button */}
+        <div className="flex justify-center -my-1">
           <Button
             variant="outline"
             size="icon"
             onClick={handleSwap}
             className={cn(
               "h-10 w-10 rounded-full border-border bg-transparent text-muted-foreground",
-              "transition-all duration-200",
-              "hover:rotate-180 hover:border-primary/50 hover:text-primary hover:shadow-md hover:shadow-primary/10",
-              "active:scale-95"
+              "transition-all duration-300",
+              "hover:rotate-180 hover:border-primary/50 hover:text-primary hover:shadow-lg hover:shadow-primary/10",
+              "active:scale-90"
             )}
             aria-label="Swap origin and destination"
           >
@@ -78,6 +97,7 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
           </Button>
         </div>
 
+        {/* Destination country */}
         <CountrySelector
           value={destination}
           onValueChange={setDestination}
@@ -85,49 +105,58 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
           exclude={origin}
         />
 
-        <div className="flex flex-col gap-1.5">
+        {/* Amount field */}
+        <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Amount ({originCountry?.currency || "USD"})
+            You send
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">
-              {originCountry?.currency === "USD" ? "$" : originCountry?.currency === "MXN" ? "$" : ""}
-            </span>
             <Input
               type="number"
               min="1"
+              step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               className={cn(
-                "h-14 rounded-xl border-border bg-muted/50 text-right text-2xl font-bold text-foreground",
-                "transition-colors",
-                "hover:bg-muted focus:bg-muted focus:ring-primary",
-                "pr-20"
+                "h-16 rounded-xl border-border bg-muted/40 text-right text-3xl font-bold text-foreground tabular-nums",
+                "transition-all duration-200",
+                "hover:bg-muted/60 hover:border-primary/30",
+                "focus:ring-2 focus:ring-primary/30 focus:border-primary/50",
+                "pr-20 pl-5"
               )}
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
               {originCountry?.currency || "USD"}
             </span>
           </div>
+          {parsedAmount > 0 && (
+            <p className="text-right text-xs text-muted-foreground">
+              {"You'll compare routes for "}
+              <span className="font-medium text-foreground">
+                {parsedAmount.toLocaleString()} {originCountry?.currency}
+              </span>
+            </p>
+          )}
         </div>
 
+        {/* Submit */}
         <Button
           onClick={handleSubmit}
-          disabled={!amount || Number.parseFloat(amount) <= 0 || loading}
+          disabled={!isValid || loading}
           className={cn(
-            "mt-1 h-14 w-full rounded-xl bg-primary text-base font-semibold text-primary-foreground",
+            "mt-2 h-14 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground",
             "transition-all duration-200",
-            "hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/25",
+            "hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/30",
             "active:scale-[0.98]",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+            "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
           )}
           size="lg"
         >
           {loading ? (
             <span className="flex items-center gap-3">
               <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              Comparing routes...
+              Finding best routes...
             </span>
           ) : (
             <span className="flex items-center gap-3">
@@ -136,6 +165,12 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
             </span>
           )}
         </Button>
+
+        {/* Trust signal */}
+        <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+          <Sparkles className="h-3 w-3 text-primary/60" />
+          <span>Real-time rates from multiple anchors via Stellar</span>
+        </div>
       </div>
     </div>
   );
