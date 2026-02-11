@@ -129,6 +129,7 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
               alt="POP logo"
               width={36}
               height={36}
+              priority
               className={cn(
                 "rounded-lg transition-all duration-500",
                 scrolled ? "h-8 w-8" : "h-9 w-9"
