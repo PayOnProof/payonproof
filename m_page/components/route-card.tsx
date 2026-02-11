@@ -83,14 +83,14 @@ export function RouteCard({
         </div>
       )}
 
-      <div className="p-5 md:p-6">
+      <div className="p-4 sm:p-5 md:p-6">
         {/* Main row: pathway + amount + CTA */}
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: anchor pathway + badges + metrics */}
           <div className="flex flex-1 flex-col gap-4">
             {/* Anchor pathway */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3.5 py-2">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
                 <CircleDot className="h-4 w-4 shrink-0 text-primary" />
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-foreground">
@@ -117,11 +117,11 @@ export function RouteCard({
                 </Badge>
               </div>
 
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/50">
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+              <div className="ml-4 flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 sm:ml-0 sm:h-8 sm:w-8">
+                <ArrowRight className="h-3 w-3 text-muted-foreground sm:h-3.5 sm:w-3.5" />
               </div>
 
-              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3.5 py-2">
+              <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
                 <CircleDot className="h-4 w-4 shrink-0 text-success" />
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-foreground">
@@ -178,7 +178,7 @@ export function RouteCard({
           </div>
 
           {/* Right: received amount + CTA */}
-          <div className="flex items-center gap-5 lg:flex-col lg:items-end lg:gap-3">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5 lg:flex-col lg:items-end lg:gap-3">
             <div className="lg:text-right">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Recipient gets
@@ -194,7 +194,7 @@ export function RouteCard({
               onClick={() => onSelect(route)}
               disabled={!route.available}
               className={cn(
-                "min-w-[130px] rounded-xl font-bold",
+                "w-full min-w-[130px] rounded-xl font-bold sm:w-auto",
                 "transition-all duration-200",
                 "hover:scale-105 hover:shadow-lg hover:shadow-primary/20",
                 "active:scale-[0.98]",

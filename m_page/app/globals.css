@@ -46,6 +46,10 @@
   * {
     @apply border-border;
   }
+  html,
+  body {
+    @apply overflow-x-hidden;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -261,4 +265,70 @@ html {
 }
 .animate-scroll-logos {
   animation: scroll-logos 30s linear infinite;
+}
+
+/* ===========================================
+   ANIMATED GRADIENT MESH BACKGROUND
+   =========================================== */
+@keyframes mesh-drift-1 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  25%      { transform: translate(5%, -8%) scale(1.05); }
+  50%      { transform: translate(-3%, 6%) scale(0.97); }
+  75%      { transform: translate(7%, 3%) scale(1.03); }
+}
+@keyframes mesh-drift-2 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  25%      { transform: translate(-6%, 5%) scale(1.03); }
+  50%      { transform: translate(4%, -4%) scale(0.98); }
+  75%      { transform: translate(-2%, 7%) scale(1.05); }
+}
+@keyframes mesh-drift-3 {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  25%      { transform: translate(3%, 6%) scale(0.97); }
+  50%      { transform: translate(-5%, -3%) scale(1.04); }
+  75%      { transform: translate(4%, -5%) scale(1.01); }
+}
+
+.gradient-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.gradient-mesh::before,
+.gradient-mesh::after,
+.gradient-mesh .mesh-orb {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+
+.gradient-mesh::before {
+  top: -15%;
+  left: -10%;
+  width: 55%;
+  height: 55%;
+  background: radial-gradient(circle, hsl(263 70% 58% / 0.04) 0%, transparent 70%);
+  animation: mesh-drift-1 25s ease-in-out infinite;
+}
+
+.gradient-mesh::after {
+  bottom: -20%;
+  right: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(circle, hsl(240 60% 50% / 0.03) 0%, transparent 70%);
+  animation: mesh-drift-2 30s ease-in-out infinite;
+}
+
+.mesh-orb {
+  top: 30%;
+  left: 40%;
+  width: 40%;
+  height: 40%;
+  background: radial-gradient(circle, hsl(263 50% 50% / 0.025) 0%, transparent 70%);
+  animation: mesh-drift-3 20s ease-in-out infinite;
 }

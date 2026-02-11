@@ -46,7 +46,7 @@ export function HowItWorks() {
     <section
       ref={ref}
       id="how-it-works"
-      className="relative overflow-hidden border-t border-border/30 px-4 py-28 md:py-36"
+      className="relative overflow-x-hidden border-t border-border/30 px-5 py-16 sm:px-6 md:py-28 lg:py-36"
     >
       {/* Background */}
       <div className="pointer-events-none absolute inset-0 dot-pattern opacity-30" aria-hidden="true" />
@@ -55,14 +55,14 @@ export function HowItWorks() {
         {/* Header */}
         <div
           className={cn(
-            "mb-20 text-center transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "mb-10 text-center transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:mb-16 md:mb-20",
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           )}
         >
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             How It Works
           </p>
-          <h2 className="text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
+          <h2 className="text-balance text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl lg:text-5xl">
             Four steps to transparent
             <br className="hidden sm:block" />
             <span className="text-primary">{" "}global transfers</span>

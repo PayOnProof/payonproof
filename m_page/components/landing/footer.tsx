@@ -8,8 +8,8 @@ const LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border/30 px-4 py-12 md:py-16">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10">
+    <footer className="border-t border-border/30 px-5 py-10 sm:px-6 md:py-16">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 sm:gap-10">
         {/* Top row */}
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
           {/* Logo */}

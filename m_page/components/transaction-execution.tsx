@@ -180,13 +180,13 @@ export function TransactionExecution({
       </div>
 
       {/* Route summary bar */}
-      <div className="border-b border-border bg-muted/10 px-5 py-4">
-        <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-between md:text-left">
+      <div className="border-b border-border bg-muted/10 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex flex-col items-center gap-3 text-center sm:gap-4 md:flex-row md:justify-between md:text-left">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Sending
             </p>
-            <p className="text-2xl font-bold tabular-nums text-foreground">
+            <p className="text-xl font-bold tabular-nums text-foreground sm:text-2xl">
               {amount.toLocaleString()}{" "}
               <span className="text-sm font-normal text-muted-foreground">
                 {route.originCurrency}
@@ -206,7 +206,7 @@ export function TransactionExecution({
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Recipient gets
             </p>
-            <p className="text-2xl font-bold tabular-nums text-primary">
+            <p className="text-xl font-bold tabular-nums text-primary sm:text-2xl">
               {route.receivedAmount.toLocaleString()}{" "}
               <span className="text-sm font-normal text-muted-foreground">
                 {route.destinationCurrency}
@@ -217,7 +217,7 @@ export function TransactionExecution({
       </div>
 
       {/* Content */}
-      <div className="p-5 md:p-6">
+      <div className="p-4 sm:p-5 md:p-6">
         {!started ? (
           /* Pre-confirmation view */
           <div className="flex flex-col items-center gap-6 py-2">
@@ -250,7 +250,7 @@ export function TransactionExecution({
             <Button
               onClick={() => setStarted(true)}
               className={cn(
-                "h-14 w-full max-w-sm rounded-xl bg-primary text-base font-bold text-primary-foreground",
+                "h-12 w-full max-w-sm rounded-xl bg-primary text-sm font-bold text-primary-foreground sm:h-14 sm:text-base",
                 "transition-all duration-200",
                 "hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/30",
                 "active:scale-[0.98]",

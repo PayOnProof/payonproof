@@ -119,7 +119,7 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               className={cn(
-                "h-16 rounded-xl border-border bg-muted/40 text-right text-3xl font-bold text-foreground tabular-nums",
+                "h-14 rounded-xl border-border bg-muted/40 text-right text-2xl font-bold text-foreground tabular-nums sm:h-16 sm:text-3xl",
                 "transition-all duration-200",
                 "hover:bg-muted/60 hover:border-primary/30",
                 "focus:ring-2 focus:ring-primary/30 focus:border-primary/50",
@@ -145,7 +145,7 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
           onClick={handleSubmit}
           disabled={!isValid || loading}
           className={cn(
-            "mt-2 h-14 w-full rounded-xl bg-primary text-base font-bold text-primary-foreground",
+            "mt-2 h-12 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground sm:h-14 sm:text-base",
             "transition-all duration-200",
             "hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/30",
             "active:scale-[0.98]",

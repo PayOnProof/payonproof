@@ -30,7 +30,7 @@ export function CtaSection() {
       <section
         ref={ref}
         id="cta"
-        className="relative overflow-hidden border-t border-border/30 px-4 py-28 md:py-36"
+        className="relative overflow-x-hidden border-t border-border/30 px-5 py-16 sm:px-6 md:py-28 lg:py-36"
       >
         <div className="pointer-events-none absolute inset-0 dot-pattern opacity-20" aria-hidden="true" />
 
@@ -41,7 +41,7 @@ export function CtaSection() {
               "relative overflow-hidden flex flex-col items-center rounded-3xl",
               "bg-gradient-to-br from-[#8B5CF6] via-[#7C3AED] to-[#6366F1]",
               "border border-white/10",
-              "px-8 py-20 text-center md:px-20 md:py-24",
+              "px-6 py-14 text-center sm:px-10 sm:py-18 md:px-20 md:py-24",
               "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
               "hover:-translate-y-2 hover:shadow-[0_32px_80px_rgba(139,92,246,0.35)]",
               isVisible
@@ -69,7 +69,7 @@ export function CtaSection() {
             {/* Title */}
             <h2
               className={cn(
-                "relative max-w-xl text-balance text-3xl font-bold text-white md:text-4xl lg:text-5xl leading-[1.1]",
+                "relative max-w-xl text-balance text-2xl font-bold text-white sm:text-3xl md:text-4xl lg:text-5xl leading-[1.1]",
                 "transition-all duration-700",
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               )}
@@ -148,7 +148,7 @@ export function CtaSection() {
               {BADGES.map((badge) => (
                 <span
                   key={badge.label}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-white/80"
+                  className="inline-flex items-center gap-2 text-xs font-medium text-white/80 sm:text-sm"
                 >
                   <badge.icon className="h-4 w-4 text-white/90" />
                   {badge.label}
@@ -168,12 +168,12 @@ export function CtaSection() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Security & compliance
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-8">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-8">
               {CERTIFICATIONS.map((cert) => (
                 <div
                   key={cert.label}
                   className={cn(
-                    "group flex items-center gap-2.5 rounded-full border border-border/40 bg-card/40 backdrop-blur-sm px-5 py-2.5",
+                    "group flex items-center gap-2 rounded-full border border-border/40 bg-card/40 backdrop-blur-sm px-4 py-2 sm:gap-2.5 sm:px-5 sm:py-2.5",
                     "transition-all duration-300",
                     "hover:border-primary/30 hover:bg-primary/[0.04]"
                   )}

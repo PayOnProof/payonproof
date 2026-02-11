@@ -125,13 +125,13 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
         </div>
 
         {/* Transfer summary */}
-        <div className="border-b border-border bg-muted/10 px-6 py-6">
+        <div className="border-b border-border bg-muted/10 px-4 py-5 sm:px-6 sm:py-6">
           <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Transfer Amount
           </p>
-          <div className="flex items-center justify-center gap-5">
+          <div className="flex items-center justify-center gap-3 sm:gap-5">
             <div className="text-center">
-              <p className="text-3xl font-bold tabular-nums text-foreground">
+              <p className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
                 {pop.originAmount.toLocaleString()}
               </p>
               <p className="mt-0.5 text-sm font-medium text-muted-foreground">
@@ -142,7 +142,7 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
               <ArrowRight className="h-5 w-5 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold tabular-nums text-primary">
+              <p className="text-2xl font-bold tabular-nums text-primary sm:text-3xl">
                 {pop.destinationAmount.toLocaleString()}
               </p>
               <p className="mt-0.5 text-sm font-medium text-muted-foreground">
@@ -153,8 +153,8 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
         </div>
 
         {/* Details grid */}
-        <div className="p-6">
-          <div className="flex flex-col gap-3.5">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3">
             <DetailRow label="Transaction ID" value={transaction.id}>
               <CopyButton
                 text={transaction.id}
@@ -213,7 +213,7 @@ Verify on Stellar: https://stellar.expert/explorer/public/tx/${pop.stellarTxHash
       </Card>
 
       {/* Action buttons */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
         <Button
           onClick={handleDownload}
           variant="outline"

@@ -83,7 +83,7 @@ export function FeaturesSection() {
   return (
     <section
       id="features"
-      className="relative overflow-hidden border-t border-border/30 px-4 py-28 md:py-36"
+      className="relative overflow-x-hidden border-t border-border/30 px-5 py-16 sm:px-6 md:py-28 lg:py-36"
     >
       {/* Background */}
       <div
@@ -95,7 +95,7 @@ export function FeaturesSection() {
       <div ref={featRef} className="relative mx-auto max-w-6xl">
         <div
           className={cn(
-            "mb-20 text-center transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "mb-10 text-center transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:mb-16 md:mb-20",
             featVisible
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-8"
@@ -104,7 +104,7 @@ export function FeaturesSection() {
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             Why POP
           </p>
-          <h2 className="text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
+          <h2 className="text-balance text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl lg:text-5xl">
             Built for <span className="text-primary">trust</span> and{" "}
             <span className="text-primary">speed</span>
           </h2>
@@ -114,7 +114,7 @@ export function FeaturesSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {FEATURES.map((feature, i) => (
             <div
               key={feature.title}
@@ -149,7 +149,7 @@ export function FeaturesSection() {
       {/* ── Testimonials ── */}
       <div
         ref={testRef}
-        className="relative mx-auto mt-28 max-w-6xl md:mt-36"
+        className="relative mx-auto mt-16 max-w-6xl sm:mt-24 md:mt-36"
       >
         <div
           className={cn(

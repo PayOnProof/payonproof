@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import { PopHeader } from "@/components/pop-header";
+import { GradientMesh } from "@/components/gradient-mesh";
 import { RemittanceForm } from "@/components/remittance-form";
 import { RouteCard } from "@/components/route-card";
 import { TransactionExecution } from "@/components/transaction-execution";
@@ -97,10 +98,11 @@ function SendPageContent() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen bg-background">
+      <GradientMesh />
       <PopHeader variant="app" />
 
-      <main className="mx-auto max-w-5xl px-4 pb-20 pt-24">
+      <main className="relative z-10 mx-auto max-w-5xl px-4 pb-16 pt-20 sm:px-6 sm:pb-20 sm:pt-24">
         {/* ---- Step 1: Search Form ---- */}
         {step === "search" && (
           <div className="mx-auto max-w-md animate-fade-in-up">
@@ -117,7 +119,7 @@ function SendPageContent() {
                   priority
                 />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground text-balance sm:text-4xl">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl">
                 Send Money Globally
               </h1>
               <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground text-pretty">

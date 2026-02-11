@@ -115,7 +115,7 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
       >
         <nav
           className={cn(
-            "mx-auto flex max-w-7xl items-center justify-between px-4 lg:px-8 transition-all duration-500",
+            "mx-auto flex max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8 transition-all duration-500",
             scrolled ? "py-2" : "py-4"
           )}
         >
