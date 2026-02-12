@@ -1,5 +1,7 @@
 "use client";
 
+import { connectFreighter } from "@/lib/wallet";
+
 import React, {
   createContext,
   useContext,
@@ -106,38 +108,44 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const connect = useCallback(async (walletType: WalletType) => {
     setLastAttemptedWallet(walletType);
+
+  setState({
+    status: "connecting",
+    address: null,
+    walletType,
+    error: null,
+  });
+
+  try {
+    let address: string;
+
+    if (walletType === "freighter") {
+      const result = await connectFreighter();
+      address = result.address;
+    } else {
+      // Mock para otros wallets
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000)
+      );
+      address = generateMockAddress(walletType);
+    }
+
     setState({
-      status: "connecting",
-      address: null,
+      status: "connected",
+      address,
       walletType,
       error: null,
     });
 
-    try {
-      // Simulate wallet connection with a delay
-      await new Promise((resolve) => setTimeout(resolve, 1500 + Math.random() * 1000));
-
-      // 90% success rate simulation
-      if (Math.random() > 0.1) {
-        const address = generateMockAddress(walletType);
-        setState({
-          status: "connected",
-          address,
-          walletType,
-          error: null,
-        });
-      } else {
-        throw new Error("Connection rejected by user");
-      }
-    } catch (err) {
-      setState({
-        status: "error",
-        address: null,
-        walletType: null,
-        error: err instanceof Error ? err.message : "Failed to connect wallet",
-      });
-    }
-  }, []);
+  } catch (err) {
+    setState({
+      status: "error",
+      address: null,
+      walletType: null,
+      error: err instanceof Error ? err.message : "Failed to connect wallet",
+    });
+  }
+}, []);
 
   const disconnect = useCallback(() => {
     setState({
