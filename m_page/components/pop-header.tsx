@@ -10,6 +10,7 @@ import { useWallet } from "@/lib/wallet-context";
 import { Identicon } from "@/components/identicon";
 import { ConnectWalletModal } from "@/components/connect-wallet-modal";
 
+
 const LANDING_NAV = [
   { label: "How It Works", href: "#how-it-works" },
   { label: "Features", href: "#features" },

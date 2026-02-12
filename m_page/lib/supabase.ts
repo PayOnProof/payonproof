@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 /**
  * Supabase Integration Scaffold
  *
@@ -41,30 +42,21 @@ export interface ProofRecord {
   createdAt: string;
 }
 
+
 // ─── Client factory ──────────────────────────────────────────
 
-/**
- * Create a Supabase client for server-side operations.
- * TODO: Implement using createClient from @supabase/supabase-js.
- */
 export function createSupabaseServerClient() {
-  const _url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const _key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-  // Placeholder: return null until Supabase is connected
-  return null;
+  return createClient(url, key);
 }
 
-/**
- * Create a Supabase client for client-side operations (anon key).
- * TODO: Implement using createBrowserClient from @supabase/ssr.
- */
 export function createSupabaseBrowserClient() {
-  const _url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  // Placeholder: return null until Supabase is connected
-  return null;
+  return createClient(url, key);
 }
 
 // ─── Placeholder functions ───────────────────────────────────
@@ -74,10 +66,31 @@ export function createSupabaseBrowserClient() {
  * TODO: Insert into `transactions` table.
  */
 export async function saveTransaction(
-  _record: TransactionRecord
+  record: TransactionRecord
 ): Promise<{ success: boolean }> {
+  const supabase = createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("remittances")
+    .insert([
+      {
+        sender_wallet: record.walletAddress,
+        origin_country: record.originCountry,
+        destination_country: record.destinationCountry,
+        amount: record.originAmount,
+        stellar_tx_hash: record.stellarTxHash,
+        status: record.status,
+      },
+    ]);
+
+  if (error) {
+    console.error(error);
+    return { success: false };
+  }
+
   return { success: true };
 }
+
 
 /**
  * Get transaction by ID.

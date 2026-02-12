@@ -39,6 +39,7 @@
     "@radix-ui/react-tooltip": "1.1.6",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^14.5.0",
+    "@supabase/supabase-js": "^2.95.3",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
