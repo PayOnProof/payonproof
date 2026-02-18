@@ -1,4 +1,4 @@
 {
   "framework": null,
-  "devCommand": "node -e \"console.log('api-only service')\""
+  "devCommand": "echo api-only-service"
 }
