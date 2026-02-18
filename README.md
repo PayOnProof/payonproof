@@ -1,5 +1,23 @@
 # PayOnProof (POP)
 
+## Dev setup (front + back)
+
+This repo now has two services:
+- `services/web` (Next.js frontend)
+- `services/api` (Vercel serverless REST API)
+
+Local run (two terminals):
+1. `cd services/web` then `npm install` and `npm run dev`
+2. `cd services/api` then `npm install` and `npm run dev`
+
+Env files:
+- `services/web/.env.example` -> `.env.local`
+- `services/api/.env.example` -> `.env`
+
+Vercel deploy:
+- Create two separate Vercel projects, one per service.
+- `services/web` uses `NEXT_PUBLIC_API_BASE_URL` pointing to the API project URL.
+
 POP es una interfaz simple (KISS) que agrega múltiples Anchors de Stellar y enruta pagos transfronterizos por la mejor tasa disponible en tiempo real.
 
 No es un banco.  
