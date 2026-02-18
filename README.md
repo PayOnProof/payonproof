@@ -163,3 +163,8 @@ Riesgo regulatorio
 - Liquidación en minutos
 - >99% éxito sin reprocesos
 
+
+
+
+
+.
