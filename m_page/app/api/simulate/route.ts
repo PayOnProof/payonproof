@@ -1,3 +1,4 @@
+//Simulacion de una trasaccion que genera un XDR que luego se puede usar
 import {
   Asset,
   Operation,
