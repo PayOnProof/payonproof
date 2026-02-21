@@ -7,10 +7,10 @@ export async function GET() {
 
   const { data, error } = await supabase.from("remittances").insert([
     {
-      sender_wallet: "PayOnProofWallet1",
+      sender_wallet: "PayOnProofWallet2",
       origin_country: "CR",
       destination_country: "CO",
-      amount: 100,
+      amount: 100000,
       status: "pending",
     },
   ]).select();

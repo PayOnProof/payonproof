@@ -1,79 +1,42 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { Asset } from "@stellar/stellar-sdk"
+import { publicServer } from "@/lib/stellar"
 
-/**
- * POST /api/compare-routes
- *
- * Accepts: { origin: string, destination: string, amount: number }
- * Returns: mock route comparison data
- *
- * TODO: Replace with real Stellar anchor queries via lib/stellar.ts
- */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { origin, destination, amount } = body;
+export async function GET() {
+  const XLM = Asset.native()
 
-    if (!origin || !destination || !amount || amount <= 0) {
-      return NextResponse.json(
-        { error: "Missing or invalid fields: origin, destination, amount" },
-        { status: 400 }
-      );
+  const USDC = new Asset(
+    "USDC",
+    "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"//Su direccion propia de la wallet
+  )
+
+  const response = await publicServer
+    .strictSendPaths(XLM, "10", [USDC])
+    .call()
+
+  const routes = response.records.map((route, index) => {
+    const hops = route.path.length
+    const rawAmount = parseFloat(route.destination_amount)
+
+    const popFee = rawAmount * 0.005
+    const finalAmount = rawAmount - popFee
+
+    const score = rawAmount - hops * 0.0001
+
+    return {
+      id: index,
+      hops,
+      rawAmount,
+      popFee,
+      finalAmount,
+      score,
+      path: route.path
     }
+  })
 
-    // Placeholder response structure matching RemittanceRoute[]
-    const mockRoutes = [
-      {
-        id: `route-mock-${Date.now()}`,
-        originAnchor: {
-          id: "anc-placeholder-1",
-          name: "MoneyGram",
-          country: origin,
-          currency: "USD",
-          type: "on-ramp",
-          status: "operational",
-          available: true,
-        },
-        destinationAnchor: {
-          id: "anc-placeholder-2",
-          name: "Bitso",
-          country: destination,
-          currency: "MXN",
-          type: "off-ramp",
-          status: "operational",
-          available: true,
-        },
-        originCountry: origin,
-        originCurrency: "USD",
-        destinationCountry: destination,
-        destinationCurrency: "MXN",
-        feePercentage: 1.2,
-        feeAmount: amount * 0.012,
-        feeBreakdown: { onRamp: 0.5, bridge: 0.2, offRamp: 0.5 },
-        estimatedTime: "5 min",
-        estimatedMinutes: 5,
-        exchangeRate: 17.15,
-        receivedAmount: (amount - amount * 0.012) * 17.15,
-        available: true,
-        escrow: true,
-        risks: [],
-        recommended: true,
-      },
-    ];
+  routes.sort((a, b) => b.score - a.score)
 
-    return NextResponse.json({
-      routes: mockRoutes,
-      meta: {
-        origin,
-        destination,
-        amount,
-        queriedAt: new Date().toISOString(),
-      },
-    });
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 }
-    );
-  }
+  return Response.json({
+    recommended: routes[0],
+    alternatives: routes.slice(1),
+  })
 }
