@@ -4,12 +4,16 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_HOME_URL = "https://anchors.stellar.org/";
+const DEFAULT_HORIZON_URL = "https://horizon.stellar.org";
 
 function parseArgs(argv) {
   const options = {
     homeUrl: DEFAULT_HOME_URL,
+    horizonUrl: DEFAULT_HORIZON_URL,
     outFile: "services/api/data/anchors-export.json",
     minRows: 10,
+    issuerLimit: 300,
+    assetPages: 4,
     debug: false,
     rawOutFile: "",
   };
@@ -26,10 +30,31 @@ function parseArgs(argv) {
       i += 1;
       continue;
     }
+    if (arg === "--horizon-url" && argv[i + 1]) {
+      options.horizonUrl = argv[i + 1];
+      i += 1;
+      continue;
+    }
     if (arg === "--min-rows" && argv[i + 1]) {
       const parsed = Number(argv[i + 1]);
       if (Number.isFinite(parsed) && parsed > 0) {
         options.minRows = Math.floor(parsed);
+      }
+      i += 1;
+      continue;
+    }
+    if (arg === "--issuer-limit" && argv[i + 1]) {
+      const parsed = Number(argv[i + 1]);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        options.issuerLimit = Math.floor(parsed);
+      }
+      i += 1;
+      continue;
+    }
+    if (arg === "--asset-pages" && argv[i + 1]) {
+      const parsed = Number(argv[i + 1]);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        options.assetPages = Math.floor(parsed);
       }
       i += 1;
       continue;
@@ -318,6 +343,153 @@ async function tryPlaywright(homeUrl) {
   return null;
 }
 
+function parseTomlFlat(text) {
+  const result = {};
+  const lines = text.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#") || line.startsWith("[")) continue;
+    const eq = line.indexOf("=");
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+    if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+    result[key] = value;
+  }
+  return result;
+}
+
+async function fetchJson(url) {
+  const raw = await fetchText(url, "application/json");
+  return JSON.parse(raw);
+}
+
+function normalizeSepCountries(value) {
+  if (Array.isArray(value)) {
+    return unique(value.map(normalizeCountry).filter(Boolean));
+  }
+  return [];
+}
+
+function extractSepAssetRows(info) {
+  if (!isRecord(info)) return [];
+  const rows = [];
+  const root = info;
+  const deposit = isRecord(root.deposit) ? root.deposit : {};
+  const withdraw = isRecord(root.withdraw) ? root.withdraw : {};
+
+  for (const [key, cfg] of Object.entries(deposit)) {
+    const currency = normalizeCurrency(String(key).split(":")[0] || "");
+    if (!currency) continue;
+    const countries = isRecord(cfg)
+      ? unique([
+          ...normalizeSepCountries(cfg.countries),
+          normalizeCountry(cfg.country_code),
+          normalizeCountry(cfg.country),
+        ]).filter(Boolean)
+      : [];
+    rows.push({ type: "on-ramp", currency, countries });
+  }
+  for (const [key, cfg] of Object.entries(withdraw)) {
+    const currency = normalizeCurrency(String(key).split(":")[0] || "");
+    if (!currency) continue;
+    const countries = isRecord(cfg)
+      ? unique([
+          ...normalizeSepCountries(cfg.countries),
+          normalizeCountry(cfg.country_code),
+          normalizeCountry(cfg.country),
+        ]).filter(Boolean)
+      : [];
+    rows.push({ type: "off-ramp", currency, countries });
+  }
+  return rows;
+}
+
+async function tryHorizonFallback(options) {
+  const base = options.horizonUrl.replace(/\/+$/, "");
+  let nextUrl = `${base}/assets?limit=200&order=desc`;
+  const issuers = new Set();
+
+  for (let page = 0; page < Math.max(1, options.assetPages); page += 1) {
+    const payload = await fetchJson(nextUrl);
+    const records = payload?._embedded?.records ?? [];
+    if (!Array.isArray(records) || records.length === 0) break;
+    for (const record of records) {
+      if (record?.asset_type === "native") continue;
+      if (typeof record?.asset_issuer === "string") issuers.add(record.asset_issuer);
+    }
+    const href = payload?._links?.next?.href;
+    if (!href || typeof href !== "string") break;
+    nextUrl = href;
+  }
+
+  const issuerList = [...issuers].slice(0, Math.max(1, options.issuerLimit));
+  const domains = new Set();
+  for (const issuer of issuerList) {
+    try {
+      const account = await fetchJson(`${base}/accounts/${issuer}`);
+      const homeDomain = String(account?.home_domain || "").trim().toLowerCase();
+      if (homeDomain) domains.add(homeDomain);
+    } catch {
+      // ignore
+    }
+  }
+
+  const anchors = [];
+  for (const domain of domains) {
+    try {
+      const tomlRaw = await fetchText(
+        `https://${domain}/.well-known/stellar.toml`,
+        "text/plain, text/x-toml, application/toml"
+      );
+      const toml = parseTomlFlat(tomlRaw);
+      const name = (toml.ORG_NAME || toml.ORG || domain || "").trim() || domain;
+      const sep24 = String(toml.TRANSFER_SERVER_SEP0024 || "").trim().replace(/\/+$/, "");
+      const sep6 = String(toml.TRANSFER_SERVER || "").trim().replace(/\/+$/, "");
+      const inferredCountry = normalizeCountry(domain.split(".").pop()) || "ZZ";
+      const rows = [];
+
+      if (sep24) {
+        try {
+          const info = await fetchJson(`${sep24}/info`);
+          rows.push(...extractSepAssetRows(info));
+        } catch {
+          // ignore
+        }
+      }
+      if (sep6) {
+        try {
+          const info = await fetchJson(`${sep6}/info`);
+          rows.push(...extractSepAssetRows(info));
+        } catch {
+          // ignore
+        }
+      }
+
+      for (const row of rows) {
+        const countries = row.countries.length ? row.countries : [inferredCountry];
+        anchors.push({
+          name,
+          domain,
+          countries,
+          currencies: [row.currency],
+          type: row.type,
+          active: true,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return {
+    source: `horizon:${options.horizonUrl}`,
+    strategy: "horizon-fallback",
+    anchors,
+  };
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const candidates = [];
@@ -328,61 +500,77 @@ async function main() {
   const pw = await tryPlaywright(options.homeUrl);
   if (pw) candidates.push(pw);
 
-  if (!candidates.length) {
-    throw new Error("No machine-readable payload discovered from anchors directory");
-  }
+  let best;
+  let anchors = [];
 
-  const best = candidates.sort((a, b) => b.rows.length - a.rows.length)[0];
-  const normalized = [];
-  for (const row of best.rows) {
-    normalized.push(...normalizeRecord(row));
-  }
+  if (candidates.length) {
+    best = candidates.sort((a, b) => b.rows.length - a.rows.length)[0];
+    const normalized = [];
+    for (const row of best.rows) {
+      normalized.push(...normalizeRecord(row));
+    }
+    const dedup = new Map();
+    for (const row of normalized) {
+      const key = `${row.domain}|${row.type}|${row.countries.join(",")}|${row.currencies.join(",")}`;
+      dedup.set(key, row);
+    }
+    anchors = [...dedup.values()];
 
-  if (options.debug) {
-    console.log(
-      JSON.stringify(
-        {
-          source: best.source,
-          strategy: best.strategy,
-          rawRowsFound: best.rows.length,
-          normalizedRowsFound: normalized.length,
-          rawSample: best.rows.slice(0, 5),
-        },
-        null,
-        2
-      )
-    );
-  }
-
-  if (options.rawOutFile) {
-    const rawOutPath = path.resolve(options.rawOutFile);
-    await fs.mkdir(path.dirname(rawOutPath), { recursive: true });
-    await fs.writeFile(
-      rawOutPath,
-      `${JSON.stringify(
-        {
-          generatedAt: new Date().toISOString(),
-          source: best.source,
-          strategy: best.strategy,
-          rawPayload: best.rawPayload ?? null,
-          rawRows: best.rows,
-        },
-        null,
-        2
-      )}\n`,
-      "utf-8"
-    );
     if (options.debug) {
-      console.log(`Wrote raw payload debug file -> ${rawOutPath}`);
+      console.log(
+        JSON.stringify(
+          {
+            source: best.source,
+            strategy: best.strategy,
+            rawRowsFound: best.rows.length,
+            normalizedRowsFound: normalized.length,
+            rawSample: best.rows.slice(0, 5),
+          },
+          null,
+          2
+        )
+      );
+    }
+
+    if (options.rawOutFile) {
+      const rawOutPath = path.resolve(options.rawOutFile);
+      await fs.mkdir(path.dirname(rawOutPath), { recursive: true });
+      await fs.writeFile(
+        rawOutPath,
+        `${JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            source: best.source,
+            strategy: best.strategy,
+            rawPayload: best.rawPayload ?? null,
+            rawRows: best.rows,
+          },
+          null,
+          2
+        )}\n`,
+        "utf-8"
+      );
+      if (options.debug) {
+        console.log(`Wrote raw payload debug file -> ${rawOutPath}`);
+      }
     }
   }
 
-  const dedup = new Map();
-  for (const row of normalized) {
-    const key = `${row.domain}|${row.type}|${row.countries.join(",")}|${row.currencies.join(",")}`;
-    dedup.set(key, row);
+  if (anchors.length < options.minRows) {
+    const fallback = await tryHorizonFallback(options);
+    const dedup = new Map();
+    for (const row of fallback.anchors) {
+      const key = `${row.domain}|${row.type}|${row.countries.join(",")}|${row.currencies.join(",")}`;
+      dedup.set(key, row);
+    }
+    anchors = [...dedup.values()];
+    best = {
+      source: fallback.source,
+      strategy: fallback.strategy,
+      rows: fallback.anchors,
+      rawPayload: null,
+    };
   }
-  const anchors = [...dedup.values()];
 
   if (anchors.length < options.minRows) {
     throw new Error(
