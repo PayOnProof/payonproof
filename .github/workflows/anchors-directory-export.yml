@@ -1,8 +1,9 @@
 name: Anchors Directory Export
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
+  push:
+    branches:
+      - Branch-Kenneth
   workflow_dispatch:
 
 permissions:
@@ -39,12 +40,12 @@ jobs:
 
       - name: Commit and push if changed
         run: |
-          if git diff --quiet -- services/api/data/anchors-export.json; then
+          git add services/api/data/anchors-export.json
+          if git diff --cached --quiet -- services/api/data/anchors-export.json; then
             echo "No export changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add services/api/data/anchors-export.json
           git commit -m "chore(data): refresh anchors directory export"
           git push
