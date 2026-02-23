@@ -55,7 +55,7 @@ export function HowItWorks() {
         {/* Header */}
         <div
           className={cn(
-            "mb-10 text-center transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:mb-16 md:mb-20",
+            "mb-10 text-center transition-all duration-700 ease-pop sm:mb-16 md:mb-20",
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           )}
         >
@@ -87,7 +87,7 @@ export function HowItWorks() {
               <div
                 className={cn(
                   "group relative flex w-full flex-col rounded-2xl border border-border/40 bg-card/30 backdrop-blur-sm p-7",
-                  "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  "transition-all duration-500 ease-pop",
                   "hover:border-primary/30 hover:bg-primary/[0.04] hover:-translate-y-2",
                   "hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]",
                   isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"

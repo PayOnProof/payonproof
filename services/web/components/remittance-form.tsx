@@ -2,28 +2,50 @@
 
 import React from "react"
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { ArrowDownUp, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CountrySelector } from "@/components/country-selector";
-import { COUNTRIES } from "@/lib/mock-data";
+import type { AnchorCountry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface RemittanceFormProps {
+  countries: AnchorCountry[];
   onSearch: (origin: string, destination: string, amount: number) => void;
   loading: boolean;
 }
 
-export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
-  const [origin, setOrigin] = useState("US");
-  const [destination, setDestination] = useState("CO");
+export function RemittanceForm({ countries, onSearch, loading }: RemittanceFormProps) {
+  const defaultOrigin = countries.find((country) => country.onRampCount > 0)?.code ?? "";
+  const defaultDestination =
+    countries.find(
+      (country) => country.offRampCount > 0 && country.code !== defaultOrigin
+    )?.code ?? "";
+
+  const [origin, setOrigin] = useState(defaultOrigin);
+  const [destination, setDestination] = useState(defaultDestination);
   const [amount, setAmount] = useState("500");
 
-  const originCountry = COUNTRIES.find((c) => c.code === origin);
+  useEffect(() => {
+    if (!countries.length) return;
+    if (!origin) {
+      setOrigin(defaultOrigin);
+    }
+    if (!destination) {
+      setDestination(defaultDestination);
+    }
+  }, [countries, origin, destination, defaultOrigin, defaultDestination]);
+
+  const originCountry = countries.find((c) => c.code === origin);
   const parsedAmount = Number.parseFloat(amount) || 0;
-  const isValid = parsedAmount > 0 && origin && destination && origin !== destination;
+  const isValid =
+    parsedAmount > 0 &&
+    origin &&
+    destination &&
+    origin !== destination &&
+    countries.length > 1;
 
   const handleSwap = useCallback(() => {
     setOrigin(destination);
@@ -73,6 +95,7 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
       <div className="flex flex-col gap-5 p-6" onKeyDown={handleKeyDown}>
         {/* Origin country */}
         <CountrySelector
+          countries={countries}
           value={origin}
           onValueChange={setOrigin}
           label="From"
@@ -99,6 +122,7 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
 
         {/* Destination country */}
         <CountrySelector
+          countries={countries}
           value={destination}
           onValueChange={setDestination}
           label="To"
@@ -127,14 +151,14 @@ export function RemittanceForm({ onSearch, loading }: RemittanceFormProps) {
               )}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-              {originCountry?.currency || "USD"}
+              {originCountry?.currencies?.[0] || "USD"}
             </span>
           </div>
           {parsedAmount > 0 && (
             <p className="text-right text-xs text-muted-foreground">
               {"You'll compare routes for "}
               <span className="font-medium text-foreground">
-                {parsedAmount.toLocaleString()} {originCountry?.currency}
+                {parsedAmount.toLocaleString()} {originCountry?.currencies?.[0] ?? "USD"}
               </span>
             </p>
           )}

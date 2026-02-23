@@ -42,7 +42,7 @@ export function CtaSection() {
               "bg-gradient-to-br from-[#8B5CF6] via-[#7C3AED] to-[#6366F1]",
               "border border-white/10",
               "px-6 py-14 text-center sm:px-10 sm:py-18 md:px-20 md:py-24",
-              "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              "transition-all duration-700 ease-pop",
               "hover:-translate-y-2 hover:shadow-[0_32px_80px_rgba(139,92,246,0.35)]",
               isVisible
                 ? "opacity-100 translate-y-0 scale-100"

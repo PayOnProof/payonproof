@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../lib/http";
+import { readJsonBody } from "../lib/http.ts";
 
 /**
  * POST /api/generate-proof

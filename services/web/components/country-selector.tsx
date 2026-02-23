@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { COUNTRIES } from "@/lib/mock-data";
+import type { AnchorCountry } from "@/lib/types";
 import {
   Select,
   SelectContent,
@@ -29,6 +29,7 @@ const FLAG_MAP: Record<string, string> = {
 };
 
 interface CountrySelectorProps {
+  countries: AnchorCountry[];
   value: string;
   onValueChange: (value: string) => void;
   label: string;
@@ -36,27 +37,28 @@ interface CountrySelectorProps {
 }
 
 export function CountrySelector({
+  countries,
   value,
   onValueChange,
   label,
   exclude,
 }: CountrySelectorProps) {
   const filtered = useMemo(
-    () => COUNTRIES.filter((c) => c.code !== exclude),
-    [exclude]
+    () => countries.filter((c) => c.code !== exclude),
+    [countries, exclude]
   );
 
   const grouped = useMemo(() => {
-    const map = new Map<string, typeof COUNTRIES>();
+    const map = new Map<string, AnchorCountry[]>();
     for (const c of filtered) {
-      const region = c.region ?? "Other";
+      const region = "Available corridors";
       if (!map.has(region)) map.set(region, []);
       map.get(region)!.push(c);
     }
     return map;
   }, [filtered]);
 
-  const selected = COUNTRIES.find((c) => c.code === value);
+  const selected = countries.find((c) => c.code === value);
 
   return (
     <div className="flex flex-col gap-2">
@@ -86,7 +88,7 @@ export function CountrySelector({
                     {selected.name}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {selected.currency}
+                    {(selected.currencies[0] ?? "").toUpperCase()}
                   </span>
                 </span>
               </span>
@@ -113,7 +115,7 @@ export function CountrySelector({
                       {country.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      ({country.currency})
+                      ({(country.currencies[0] ?? "").toUpperCase()})
                     </span>
                   </span>
                 </SelectItem>

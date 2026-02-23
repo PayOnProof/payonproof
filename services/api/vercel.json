@@ -1,4 +1,9 @@
 {
   "framework": null,
-  "devCommand": "echo api-only-service"
+  "crons": [
+    {
+      "path": "/api/cron/anchors-sync",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

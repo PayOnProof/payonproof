@@ -108,7 +108,7 @@ export function PopHeader({ variant = "landing" }: PopHeaderProps) {
 
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 z-40 transition-all duration-500 ease-[cubic-bezier(0.65,0,0.35,1)]",
+          "fixed top-0 left-0 right-0 z-40 transition-all duration-500 ease-smooth",
           scrolled
             ? "border-b border-border/50 bg-[rgba(0,0,0,0.8)] backdrop-blur-xl shadow-lg shadow-black/20"
             : "bg-transparent"

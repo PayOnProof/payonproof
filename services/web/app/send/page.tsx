@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { PopHeader } from "@/components/pop-header";
 import { GradientMesh } from "@/components/gradient-mesh";
@@ -8,8 +8,8 @@ import { RemittanceForm } from "@/components/remittance-form";
 import { RouteCard } from "@/components/route-card";
 import { TransactionExecution } from "@/components/transaction-execution";
 import { ProofOfPaymentView } from "@/components/proof-of-payment";
-import type { RemittanceRoute, Transaction } from "@/lib/mock-data";
-import { generateRoutes, COUNTRIES } from "@/lib/mock-data";
+import type { AnchorCountry, RemittanceRoute, Transaction } from "@/lib/types";
+import { compareRoutes, fetchAnchorCountries } from "@/lib/anchors-api";
 import { WalletProvider } from "@/lib/wallet-context";
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 type AppStep = "search" | "routes" | "execute" | "proof";
 
 function SendPageContent() {
+  const [countries, setCountries] = useState<AnchorCountry[]>([]);
   const [step, setStep] = useState<AppStep>("search");
   const [routes, setRoutes] = useState<RemittanceRoute[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RemittanceRoute | null>(
@@ -36,24 +37,57 @@ function SendPageContent() {
   const [destCode, setDestCode] = useState("");
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [countriesError, setCountriesError] = useState<string | null>(null);
+  const [noRouteReason, setNoRouteReason] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"recommended" | "cheapest" | "fastest">(
     "recommended"
   );
   const [viewMode, setViewMode] = useState<"cards" | "compact">("cards");
 
+  const loadCountries = useCallback(async () => {
+    try {
+      setCountriesError(null);
+      const items = await fetchAnchorCountries();
+      setCountries(items);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load countries";
+      setCountriesError(message);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadCountries();
+  }, [loadCountries]);
+
   const handleSearch = useCallback(
-    (origin: string, destination: string, amt: number) => {
+    async (origin: string, destination: string, amt: number) => {
       setLoading(true);
+      setSearchError(null);
+      setNoRouteReason(null);
       setOriginCode(origin);
       setDestCode(destination);
       setAmount(amt);
 
-      setTimeout(() => {
-        const results = generateRoutes(origin, destination, amt);
-        setRoutes(results);
+      try {
+        const payload = await compareRoutes({
+          origin,
+          destination,
+          amount: amt,
+        });
+
+        setRoutes(payload.routes ?? []);
+        setNoRouteReason(payload.noRouteReason ?? null);
         setStep("routes");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to fetch routes";
+        setRoutes([]);
+        setSearchError(message);
+      } finally {
         setLoading(false);
-      }, 1200);
+      }
     },
     []
   );
@@ -80,8 +114,8 @@ function SendPageContent() {
     setStep("routes");
   }, []);
 
-  const originCountry = COUNTRIES.find((c) => c.code === originCode);
-  const destCountry = COUNTRIES.find((c) => c.code === destCode);
+  const originCountry = countries.find((c) => c.code === originCode);
+  const destCountry = countries.find((c) => c.code === destCode);
 
   const sortedRoutes = [...routes].sort((a, b) => {
     if (sortBy === "cheapest") return a.feePercentage - b.feePercentage;
@@ -127,7 +161,16 @@ function SendPageContent() {
                 payment — powered by Stellar.
               </p>
             </div>
-            <RemittanceForm onSearch={handleSearch} loading={loading} />
+            <RemittanceForm
+              countries={countries}
+              onSearch={handleSearch}
+              loading={loading}
+            />
+            {countriesError && (
+              <p className="mt-3 text-center text-xs text-destructive">
+                {countriesError}
+              </p>
+            )}
           </div>
         )}
 
@@ -151,10 +194,15 @@ function SendPageContent() {
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">
-                    {amount.toLocaleString()} {originCountry?.currency}
+                    {amount.toLocaleString()} {originCountry?.currencies?.[0] ?? "USD"}
                   </span>{" "}
                   from {originCountry?.name} to {destCountry?.name}
                 </p>
+                {searchError && (
+                  <p className="mt-2 text-xs font-medium text-destructive">
+                    {searchError}
+                  </p>
+                )}
               </div>
 
               {/* Sort + view controls */}
@@ -287,7 +335,7 @@ function SendPageContent() {
                             {route.receivedAmount.toLocaleString()}
                           </span>
                           <span className="ml-1 text-xs text-muted-foreground">
-                            {destCountry?.currency}
+                            {destCountry?.currencies?.[0] ?? "USD"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -334,8 +382,8 @@ function SendPageContent() {
                     key={route.id}
                     route={route}
                     onSelect={handleSelectRoute}
-                    originCurrency={originCountry?.currency || "USD"}
-                    destinationCurrency={destCountry?.currency || "MXN"}
+                    originCurrency={originCountry?.currencies?.[0] || "USD"}
+                    destinationCurrency={destCountry?.currencies?.[0] || "USD"}
                     index={i}
                   />
                 ))}
@@ -352,7 +400,8 @@ function SendPageContent() {
                   No routes found
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Try a different origin or destination country.
+                  {noRouteReason ||
+                    "Try a different origin or destination country."}
                 </p>
                 <Button
                   variant="outline"

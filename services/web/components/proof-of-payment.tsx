@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { Transaction } from "@/lib/mock-data";
+import type { Transaction } from "@/lib/types";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

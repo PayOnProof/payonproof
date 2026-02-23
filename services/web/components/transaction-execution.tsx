@@ -8,7 +8,7 @@ import type {
   RemittanceRoute,
   Transaction,
   ProofOfPayment,
-} from "@/lib/mock-data";
+} from "@/lib/types";
 import { generateStellarHash, generateTransactionId } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -173,7 +173,7 @@ export function HeroSection() {
               key={stat.label}
               className={cn(
                 "group flex flex-col items-center gap-2 rounded-2xl border border-border/40 bg-card/40 backdrop-blur-sm px-5 py-5 sm:gap-3 sm:px-6 sm:py-7",
-                "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                "transition-all duration-500 ease-pop",
                 "hover:border-primary/30 hover:bg-primary/[0.04] hover:-translate-y-1.5",
                 "hover:shadow-[0_16px_40px_rgba(139,92,246,0.12)]"
               )}
