@@ -3,6 +3,15 @@ import { readJsonBody } from "../../../lib/http.ts";
 import { loadAnchorDirectory } from "../../../lib/stellar/anchor-directory.ts";
 import { upsertAnchorsCatalog } from "../../../lib/repositories/anchors-catalog.ts";
 
+function parseAllowedDomainsFromEnv(): string[] {
+  const raw = process.env.ANCHOR_DIRECTORY_ALLOWED_DOMAINS?.trim() ?? "";
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -19,12 +28,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const downloadUrl =
     typeof body.downloadUrl === "string" ? body.downloadUrl.trim() : undefined;
   const anchors = Array.isArray(body.anchors) ? body.anchors : undefined;
+  const strictDirectory = body.strictDirectory !== false;
+  const bodyAllowedDomains = Array.isArray(body.allowedDomains)
+    ? body.allowedDomains.filter((d): d is string => typeof d === "string")
+    : [];
+  const allowedDomains =
+    bodyAllowedDomains.length > 0
+      ? bodyAllowedDomains
+      : parseAllowedDomainsFromEnv();
+  const requireAllowedDomains = strictDirectory && Boolean(downloadUrl);
 
   try {
     const loaded = await loadAnchorDirectory({
       downloadUrl,
       anchors,
       active,
+      allowedDomains,
+      requireAllowedDomains,
+      requireDirectoryProvenance: strictDirectory && Boolean(downloadUrl),
+      rejectHorizonStrategy: strictDirectory,
     });
 
     const written = dryRun ? 0 : await upsertAnchorsCatalog(loaded.rows);
@@ -35,6 +57,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       source: loaded.source,
       totalNormalized: loaded.rows.length,
       skippedSourceRows: loaded.skipped,
+      rejectedByDomain: loaded.rejectedByDomain,
+      allowedDomainsCount: loaded.allowedDomains.length,
+      provenance: loaded.provenance,
       written,
       sample: loaded.rows.slice(0, 10),
     });

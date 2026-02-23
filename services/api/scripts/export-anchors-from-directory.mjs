@@ -18,6 +18,7 @@ function parseArgs(argv) {
     assetPages: 4,
     domainConcurrency: 10,
     strictDirectory: false,
+    allowHorizonFallback: false,
     debug: false,
     rawOutFile: "",
   };
@@ -85,6 +86,10 @@ function parseArgs(argv) {
       options.strictDirectory = true;
       continue;
     }
+    if (arg === "--allow-horizon-fallback") {
+      options.allowHorizonFallback = true;
+      continue;
+    }
     if (arg === "--debug") {
       options.debug = true;
     }
@@ -106,22 +111,7 @@ function looksLikeAnchorRecord(value) {
     typeof row.homeDomain === "string" ||
     typeof row.website === "string" ||
     typeof row.url === "string";
-  const hasMeta =
-    Boolean(row.country) ||
-    Boolean(row.countries) ||
-    Boolean(row.country_code) ||
-    Boolean(row.country_codes) ||
-    Boolean(row.countryCode) ||
-    Boolean(row.currency) ||
-    Boolean(row.currencies) ||
-    Boolean(row.currency_code) ||
-    Boolean(row.currency_codes) ||
-    Boolean(row.asset_code) ||
-    Boolean(row.asset_codes) ||
-    Boolean(row.assets) ||
-    Boolean(row.assets_supported);
-
-  return hasDomain && hasMeta;
+  return hasDomain;
 }
 
 function unique(values) {
@@ -175,9 +165,74 @@ function normalizeCountry(code) {
   return /^[A-Z]{2}$/.test(c) ? c : "";
 }
 
+function normalizeCountryName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function buildCountryNameToIsoMap() {
+  const byName = new Map();
+  const display = new Intl.DisplayNames(["en"], { type: "region" });
+
+  for (let first = 65; first <= 90; first += 1) {
+    for (let second = 65; second <= 90; second += 1) {
+      const code = String.fromCharCode(first, second);
+      const name = display.of(code);
+      if (!name || name === code) continue;
+      byName.set(normalizeCountryName(name), code);
+    }
+  }
+
+  const aliases = {
+    "united states": "US",
+    "u s": "US",
+    "u s a": "US",
+    "virgin islands u s": "VI",
+    "virgin islands british": "VG",
+    "cote d ivoire": "CI",
+    "cote divoire": "CI",
+    "congo brazzaville": "CG",
+    "congo kinshasa": "CD",
+    "democratic republic of the congo": "CD",
+    "reunion": "RE",
+    "korea south": "KR",
+    "korea north": "KP",
+    "turkiye": "TR",
+    "eu": "ZZ",
+    "global": "ZZ",
+    "worldwide": "ZZ",
+  };
+  for (const [name, code] of Object.entries(aliases)) {
+    byName.set(normalizeCountryName(name), code);
+  }
+
+  return byName;
+}
+
+const COUNTRY_NAME_TO_ISO = buildCountryNameToIsoMap();
+
+function countryNameToIso2(name) {
+  const key = normalizeCountryName(name);
+  return COUNTRY_NAME_TO_ISO.get(key) ?? "";
+}
+
 function normalizeCurrency(code) {
   const c = String(code || "").trim().toUpperCase();
   return /^[A-Z0-9]{2,12}$/.test(c) ? c : "";
+}
+
+function normalizeCountries(values) {
+  const arr = Array.isArray(values) ? values : [];
+  return unique(arr.map((value) => normalizeCountry(value)).filter(Boolean));
+}
+
+function normalizeCurrencies(values) {
+  const arr = Array.isArray(values) ? values : [];
+  return unique(arr.map((value) => normalizeCurrency(value)).filter(Boolean));
 }
 
 function normalizeDomain(raw) {
@@ -247,6 +302,45 @@ function normalizeRecord(raw) {
     type,
     active: true,
   }));
+}
+
+function extractDomainsFromNextFlightHtml(html) {
+  const discovered = [];
+  const patterns = [
+    /\\?"website\\?":\\?"(https?:\/\/[^"\\]+)\\?"/gi,
+    /\\?"toml_file\\?":\\?"(https?:\/\/[^"\\]+)\\?"/gi,
+    /\\?"home_domain\\?":\\?"([^"\\]+)\\?"/gi,
+  ];
+
+  for (const re of patterns) {
+    let match;
+    while ((match = re.exec(html)) !== null) {
+      const raw = String(match[1] || "").trim();
+      if (!raw || raw === "null") continue;
+      discovered.push(normalizeDomain(raw));
+    }
+  }
+
+  return filterDirectoryDomains(discovered);
+}
+
+function domainsFromRows(rows) {
+  const domains = [];
+  for (const row of rows) {
+    if (!isRecord(row)) continue;
+    const rawDomain = pickString(row, [
+      "domain",
+      "home_domain",
+      "homeDomain",
+      "website",
+      "url",
+    ]);
+    const host = normalizeDomain(rawDomain);
+    if (host) {
+      domains.push(host);
+    }
+  }
+  return filterDirectoryDomains(domains);
 }
 
 function collectRecords(input, out, seen = new Set()) {
@@ -678,6 +772,157 @@ async function tryPlaywright(homeUrl) {
   return null;
 }
 
+function extractCurrencyCodesFromSymbols(values) {
+  const found = [];
+  for (const value of values) {
+    const text = String(value || "").toUpperCase();
+    const matches = text.match(/\b[A-Z0-9]{2,12}\b/g) ?? [];
+    for (const item of matches) {
+      if (normalizeCurrency(item)) {
+        found.push(item);
+      }
+    }
+  }
+  return unique(found);
+}
+
+function pickDomainFromLinks(links) {
+  for (const link of links) {
+    if (/\/\.well-known\/stellar\.toml/i.test(link)) {
+      return normalizeDomain(link);
+    }
+  }
+  for (const link of links) {
+    const host = normalizeDomain(link);
+    if (host) return host;
+  }
+  return "";
+}
+
+async function tryPlaywrightModalDirectoryRows(homeUrl) {
+  let playwright;
+  try {
+    playwright = await import("playwright");
+  } catch {
+    return null;
+  }
+
+  const browser = await playwright.chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  try {
+    await page.goto(homeUrl, { waitUntil: "networkidle", timeout: 60000 });
+    await page.waitForTimeout(3000);
+
+    const count = await page.locator("[class*=Card_title]").count();
+    const rows = [];
+
+    for (let index = 0; index < count; index += 1) {
+      const trigger = page.locator("[class*=Card_title]").nth(index).locator("button,[role='button']").first();
+      if (!(await trigger.count())) continue;
+
+      try {
+        await trigger.click({ timeout: 5000 });
+        await page.waitForSelector("[class*=Modal_modal]", { timeout: 5000 });
+        await page.waitForTimeout(150);
+
+        const anchor = await page.evaluate(() => {
+          const modal = document.querySelector("[class*=Modal_modal]");
+          if (!modal) return null;
+
+          const name = modal.querySelector("[class*=Modal_title]")?.textContent?.trim() ?? "";
+          const locationsRaw =
+            modal.querySelector("[class*=Modal_locations]")?.textContent?.trim() ?? "";
+          const countries = locationsRaw
+            ? locationsRaw.split("/").map((v) => v.trim()).filter(Boolean)
+            : [];
+
+          const links = [...modal.querySelectorAll("a[href]")]
+            .map((a) => a.getAttribute("href") || "")
+            .filter(Boolean);
+
+          const sections = [...modal.querySelectorAll("[class*=ModalAccordion_header]")]
+            .map((header) => ({
+              label:
+                header.querySelector("[class*=ModalAccordion_label]")?.textContent?.trim() ??
+                "",
+              items: [...header.querySelectorAll("[class*=ModalAccordion_listItem]")]
+                .map((item) => item.textContent?.trim() ?? "")
+                .filter(Boolean),
+            }))
+            .filter((section) => section.label);
+
+          const tags = [...modal.querySelectorAll("[class*=Modal_tag]")]
+            .map((tag) => tag.textContent?.trim() ?? "")
+            .filter(Boolean);
+
+          return { name, countries, links, sections, tags };
+        });
+
+        if (!anchor || !anchor.name) {
+          await page.keyboard.press("Escape").catch(() => {});
+          continue;
+        }
+
+        const domain = pickDomainFromLinks(anchor.links);
+        if (!domain) {
+          await page.keyboard.press("Escape").catch(() => {});
+          continue;
+        }
+
+        const countryCodes = unique(
+          anchor.countries
+            .map(countryNameToIso2)
+            .filter((code) => normalizeCountry(code))
+        );
+
+        const fiatItems = anchor.sections
+          .filter((section) => /fiat/i.test(section.label))
+          .flatMap((section) => section.items);
+        const cryptoItems = anchor.sections
+          .filter((section) => /crypto/i.test(section.label))
+          .flatMap((section) => section.items);
+        const currencyCodes = unique([
+          ...extractCurrencyCodesFromSymbols(fiatItems),
+          ...extractCurrencyCodesFromSymbols(cryptoItems),
+        ]);
+
+        if (currencyCodes.length > 0) {
+          rows.push({
+            name: anchor.name,
+            domain,
+            countries: countryCodes.length > 0 ? countryCodes : ["ZZ"],
+            currencies: currencyCodes,
+            type: "both",
+            active: true,
+            tags: anchor.tags,
+          });
+        }
+
+        const closeButton = page.locator("[class*=Modal_closeButton]").first();
+        if (await closeButton.count()) {
+          await closeButton.click({ timeout: 3000 }).catch(() => {});
+        } else {
+          await page.keyboard.press("Escape").catch(() => {});
+        }
+        await page.waitForTimeout(100);
+      } catch {
+        await page.keyboard.press("Escape").catch(() => {});
+      }
+    }
+
+    if (rows.length === 0) return null;
+    return {
+      source: `${homeUrl}#playwright-modal`,
+      strategy: "playwright-modal",
+      rows,
+      rawPayload: { rowCount: rows.length },
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
 function isLikelyDomainHost(hostname) {
   if (typeof hostname !== "string") return false;
   const host = hostname.trim().toLowerCase();
@@ -852,6 +1097,50 @@ function normalizeSepCountries(value) {
   return [];
 }
 
+function extractCountryCodesFromAssetConfig(assetConfig) {
+  if (!isRecord(assetConfig)) return [];
+  const cfg = assetConfig;
+  const found = new Set();
+
+  const direct = [
+    cfg.country,
+    cfg.country_code,
+    cfg.countryCode,
+    cfg.countries,
+    cfg.country_codes,
+  ];
+
+  for (const value of direct) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const code = normalizeCountry(item);
+        if (code) found.add(code);
+      }
+      continue;
+    }
+    const code = normalizeCountry(value);
+    if (code) found.add(code);
+  }
+
+  const fields = isRecord(cfg.fields) ? cfg.fields : undefined;
+  if (fields) {
+    const countryField = isRecord(fields.country_code)
+      ? fields.country_code
+      : isRecord(fields.countryCode)
+        ? fields.countryCode
+        : undefined;
+    const choices = countryField?.choices;
+    if (Array.isArray(choices)) {
+      for (const item of choices) {
+        const code = normalizeCountry(item);
+        if (code) found.add(code);
+      }
+    }
+  }
+
+  return [...found];
+}
+
 function extractSepAssetRows(info) {
   if (!isRecord(info)) return [];
   const rows = [];
@@ -862,25 +1151,13 @@ function extractSepAssetRows(info) {
   for (const [key, cfg] of Object.entries(deposit)) {
     const currency = normalizeCurrency(String(key).split(":")[0] || "");
     if (!currency) continue;
-    const countries = isRecord(cfg)
-      ? unique([
-          ...normalizeSepCountries(cfg.countries),
-          normalizeCountry(cfg.country_code),
-          normalizeCountry(cfg.country),
-        ]).filter(Boolean)
-      : [];
+    const countries = extractCountryCodesFromAssetConfig(cfg);
     rows.push({ type: "on-ramp", currency, countries });
   }
   for (const [key, cfg] of Object.entries(withdraw)) {
     const currency = normalizeCurrency(String(key).split(":")[0] || "");
     if (!currency) continue;
-    const countries = isRecord(cfg)
-      ? unique([
-          ...normalizeSepCountries(cfg.countries),
-          normalizeCountry(cfg.country_code),
-          normalizeCountry(cfg.country),
-        ]).filter(Boolean)
-      : [];
+    const countries = extractCountryCodesFromAssetConfig(cfg);
     rows.push({ type: "off-ramp", currency, countries });
   }
   return rows;
@@ -920,8 +1197,6 @@ async function tryHorizonFallback(options) {
   const diagnostics = {
     domainsTotal: domains.size,
     skippedNoSep: 0,
-    skippedNoSigningKey: 0,
-    skippedNoWebAuth: 0,
     skippedNoAssets: 0,
   };
   for (const domain of domains) {
@@ -932,24 +1207,13 @@ async function tryHorizonFallback(options) {
       );
       const toml = parseTomlFlat(tomlRaw);
       const name = (toml.ORG_NAME || toml.ORG || domain || "").trim() || domain;
-      const signingKey = String(toml.SIGNING_KEY || "").trim();
-      const webAuthEndpoint = String(toml.WEB_AUTH_ENDPOINT || "").trim();
       const sep24 = String(toml.TRANSFER_SERVER_SEP0024 || "").trim().replace(/\/+$/, "");
       const sep6 = String(toml.TRANSFER_SERVER || "").trim().replace(/\/+$/, "");
-      const sep31 = String(toml.DIRECT_PAYMENT_SERVER || "").trim().replace(/\/+$/, "");
       const inferredCountry = normalizeCountry(domain.split(".").pop()) || "ZZ";
       const rows = [];
 
       // Trust baseline for exported anchors.
-      if (!signingKey) {
-        diagnostics.skippedNoSigningKey += 1;
-        continue;
-      }
-      if (!webAuthEndpoint) {
-        diagnostics.skippedNoWebAuth += 1;
-        continue;
-      }
-      if (!sep24 && !sep31) {
+      if (!sep24 && !sep6) {
         diagnostics.skippedNoSep += 1;
         continue;
       }
@@ -1005,8 +1269,6 @@ async function buildAnchorsFromDomains(domains, options) {
   const diagnostics = {
     domainsTotal: domainList.length,
     skippedNoSep: 0,
-    skippedNoSigningKey: 0,
-    skippedNoWebAuth: 0,
     skippedNoAssets: 0,
     failedToml: 0,
   };
@@ -1022,23 +1284,12 @@ async function buildAnchorsFromDomains(domains, options) {
         );
         const toml = parseTomlFlat(tomlRaw);
         const name = (toml.ORG_NAME || toml.ORG || domain || "").trim() || domain;
-        const signingKey = String(toml.SIGNING_KEY || "").trim();
-        const webAuthEndpoint = String(toml.WEB_AUTH_ENDPOINT || "").trim();
         const sep24 = String(toml.TRANSFER_SERVER_SEP0024 || "").trim().replace(/\/+$/, "");
         const sep6 = String(toml.TRANSFER_SERVER || "").trim().replace(/\/+$/, "");
-        const sep31 = String(toml.DIRECT_PAYMENT_SERVER || "").trim().replace(/\/+$/, "");
         const inferredCountry = normalizeCountry(domain.split(".").pop()) || "ZZ";
         const rows = [];
 
-        if (!signingKey) {
-          diagnostics.skippedNoSigningKey += 1;
-          return [];
-        }
-        if (!webAuthEndpoint) {
-          diagnostics.skippedNoWebAuth += 1;
-          return [];
-        }
-        if (!sep24 && !sep31) {
+        if (!sep24 && !sep6) {
           diagnostics.skippedNoSep += 1;
           return [];
         }
@@ -1091,6 +1342,13 @@ async function buildAnchorsFromDomains(domains, options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const candidates = [];
+  let homeHtml = "";
+
+  try {
+    homeHtml = await fetchText(options.homeUrl, "text/html,application/json,text/plain");
+  } catch {
+    // best effort
+  }
 
   const resources = await tryResourcesDirectory(options);
   if (resources) candidates.push(resources);
@@ -1103,22 +1361,42 @@ async function main() {
 
   const pw = await tryPlaywright(options.homeUrl);
   if (pw) candidates.push(pw);
+  const modalRows = await tryPlaywrightModalDirectoryRows(options.homeUrl);
+  if (modalRows) candidates.push(modalRows);
 
   let best;
   let anchors = [];
+  const discoveredDomains = new Set();
+
+  if (homeHtml) {
+    const fromNextFlight = extractDomainsFromNextFlightHtml(homeHtml);
+    for (const domain of fromNextFlight) {
+      discoveredDomains.add(domain);
+    }
+    if (options.debug) {
+      console.log(
+        JSON.stringify(
+          {
+            strategy: "next-flight-inline-html",
+            domainsFound: fromNextFlight.length,
+            sample: fromNextFlight.slice(0, 25),
+          },
+          null,
+          2
+        )
+      );
+    }
+  }
 
   if (candidates.length) {
     best = candidates.sort((a, b) => b.rows.length - a.rows.length)[0];
-    const normalized = [];
-    for (const row of best.rows) {
-      normalized.push(...normalizeRecord(row));
+    const fromRows =
+      best.strategy === "playwright-modal"
+        ? filterDirectoryDomains(best.rows.map((row) => row.domain))
+        : domainsFromRows(best.rows);
+    for (const domain of fromRows) {
+      discoveredDomains.add(domain);
     }
-    const dedup = new Map();
-    for (const row of normalized) {
-      const key = `${row.domain}|${row.type}|${row.countries.join(",")}|${row.currencies.join(",")}`;
-      dedup.set(key, row);
-    }
-    anchors = [...dedup.values()];
 
     if (options.debug) {
       console.log(
@@ -1127,7 +1405,7 @@ async function main() {
             source: best.source,
             strategy: best.strategy,
             rawRowsFound: best.rows.length,
-            normalizedRowsFound: normalized.length,
+            domainCandidatesFound: fromRows.length,
             rawSample: best.rows.slice(0, 5),
           },
           null,
@@ -1160,28 +1438,66 @@ async function main() {
     }
   }
 
-  if (anchors.length < options.minRows) {
-    const domainDiscovery = await tryDirectoryDomainsPlaywright(options.homeUrl);
-    if (domainDiscovery?.domains?.length) {
-      const fromDomains = await buildAnchorsFromDomains(domainDiscovery.domains, options);
-      const dedup = new Map();
-      for (const row of fromDomains.anchors) {
-        const key = `${row.domain}|${row.type}|${row.countries.join(",")}|${row.currencies.join(",")}`;
-        dedup.set(key, row);
-      }
-      anchors = [...dedup.values()];
-      best = {
-        source: fromDomains.source,
-        strategy: fromDomains.strategy,
-        rows: fromDomains.anchors,
-        rawPayload: domainDiscovery.rawPayload ?? null,
-        diagnostics: fromDomains.diagnostics,
-      };
+  const domainDiscovery = await tryDirectoryDomainsPlaywright(options.homeUrl);
+  if (domainDiscovery?.domains?.length) {
+    for (const domain of domainDiscovery.domains) {
+      discoveredDomains.add(domain);
     }
   }
 
+  const domainCandidates = [...discoveredDomains];
+  const uiRows =
+    best?.strategy === "playwright-modal"
+      ? best.rows
+      : modalRows?.rows ?? [];
+  if (domainCandidates.length > 0) {
+    const fromDomains = await buildAnchorsFromDomains(domainCandidates, options);
+    const validatedDomains = new Set(fromDomains.anchors.map((row) => row.domain));
+    const uiAnchors =
+      uiRows.length > 0
+        ? uiRows
+            .filter((row) => validatedDomains.has(normalizeDomain(row.domain)))
+            .flatMap((row) => {
+              const countries = normalizeCountries(row.countries);
+              const currencies = normalizeCurrencies(row.currencies);
+              if (!countries.length || !currencies.length) return [];
+              return [
+                {
+                  name: row.name,
+                  domain: normalizeDomain(row.domain),
+                  countries,
+                  currencies,
+                  type: "on-ramp",
+                  active: true,
+                },
+                {
+                  name: row.name,
+                  domain: normalizeDomain(row.domain),
+                  countries,
+                  currencies,
+                  type: "off-ramp",
+                  active: true,
+                },
+              ];
+            })
+        : [];
+    const dedup = new Map();
+    for (const row of [...fromDomains.anchors, ...uiAnchors]) {
+      const key = `${row.domain}|${row.type}|${row.countries.join(",")}|${row.currencies.join(",")}`;
+      dedup.set(key, row);
+    }
+    anchors = [...dedup.values()];
+    best = {
+      source: fromDomains.source,
+      strategy: fromDomains.strategy,
+      rows: fromDomains.anchors,
+      rawPayload: domainDiscovery?.rawPayload ?? best?.rawPayload ?? null,
+      diagnostics: fromDomains.diagnostics,
+    };
+  }
+
   if (anchors.length < options.minRows) {
-    if (options.strictDirectory) {
+    if (options.strictDirectory || !options.allowHorizonFallback) {
       throw new Error(
         `Discovered only ${anchors.length} normalized anchors from anchors.stellar.org (<${options.minRows}).`
       );
@@ -1213,6 +1529,7 @@ async function main() {
     source: best.source,
     strategy: best.strategy,
     homeUrl: options.homeUrl,
+    directoryDomains: domainCandidates,
     diagnostics: best.diagnostics ?? undefined,
     anchors,
   };

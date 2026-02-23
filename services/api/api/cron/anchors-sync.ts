@@ -12,6 +12,15 @@ import { evaluateAnchorTrust } from "../../lib/stellar/trust.ts";
 
 const DEFAULT_DIRECTORY_HOME = "https://anchors.stellar.org/";
 
+function parseAllowedDomainsFromEnv(): string[] {
+  const raw = process.env.ANCHOR_DIRECTORY_ALLOWED_DOMAINS?.trim() ?? "";
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function getQueryValue(req: VercelRequest, key: string): string | undefined {
   if (req.query && typeof req.query[key] === "string") {
     return (req.query[key] as string).trim();
@@ -154,7 +163,12 @@ async function discoverFromAnchorsStellarOrg(homeUrl: string) {
 
   for (const url of candidates) {
     try {
-      const loaded = await loadAnchorDirectory({ downloadUrl: url, active: true });
+      const loaded = await loadAnchorDirectory({
+        downloadUrl: url,
+        active: true,
+        requireDirectoryProvenance: true,
+        rejectHorizonStrategy: true,
+      });
       if (loaded.rows.length > 0) {
         return loaded;
       }
@@ -172,6 +186,7 @@ async function discoverFromAnchorsStellarOrg(homeUrl: string) {
       const loaded = await loadAnchorDirectory({
         anchors: best as unknown[],
         active: true,
+        rejectHorizonStrategy: true,
       });
       if (loaded.rows.length > 0) {
         return {
@@ -221,7 +236,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const discoveryMode =
     getQueryValue(req, "mode") ||
     process.env.ANCHOR_DISCOVERY_MODE?.trim() ||
-    "horizon";
+    "directory";
+  const allowHorizonFallback =
+    getQueryValue(req, "allowHorizon") === "true" ||
+    String(process.env.ANCHOR_ENABLE_HORIZON_FALLBACK ?? "false").toLowerCase() ===
+      "true";
   const horizonUrl = getQueryValue(req, "horizonUrl");
   const issuerLimit = parseLimit(getQueryValue(req, "issuerLimit"), 250);
   const assetPages = parseLimit(getQueryValue(req, "assetPages"), 4);
@@ -240,6 +259,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requireSep24OrSep31 =
     String(process.env.ANCHOR_TRUST_REQUIRE_SEP24_OR_SEP31 ?? "true").toLowerCase() !==
     "false";
+  const allowedDomains = parseAllowedDomainsFromEnv();
 
   try {
     let importResult: {
@@ -250,7 +270,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } | null = null;
 
     if (sourceUrl) {
-      const loaded = await loadAnchorDirectory({ downloadUrl: sourceUrl, active: true });
+      const loaded = await loadAnchorDirectory({
+        downloadUrl: sourceUrl,
+        active: true,
+        allowedDomains,
+        requireAllowedDomains: true,
+        requireDirectoryProvenance: true,
+        rejectHorizonStrategy: true,
+      });
       const written = await upsertAnchorsCatalog(loaded.rows);
       importResult = {
         source: loaded.source,
@@ -260,9 +287,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
     } else {
       const loaded =
-        discoveryMode === "directory"
-          ? await discoverFromAnchorsStellarOrg(directoryHome)
-          : await (async () => {
+        discoveryMode === "horizon" && allowHorizonFallback
+          ? await (async () => {
               try {
                 const discovered = await discoverAnchorsFromHorizon({
                   horizonUrl: horizonUrl || undefined,
@@ -283,7 +309,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               } catch {
                 return await discoverFromAnchorsStellarOrg(directoryHome);
               }
-            })();
+            })()
+          : await discoverFromAnchorsStellarOrg(directoryHome);
       const written = await upsertAnchorsCatalog(loaded.rows);
       importResult = {
         source: loaded.source,
@@ -422,6 +449,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sourceUrl: sourceUrl ?? null,
       directoryHome,
       discoveryMode,
+      allowHorizonFallback,
       horizonUrl: horizonUrl || process.env.STELLAR_HORIZON_URL || null,
       issuerLimit,
       assetPages,

@@ -15,12 +15,22 @@ export interface AnchorDirectoryLoadInput {
   anchors?: unknown[];
   active?: boolean;
   timeoutMs?: number;
+  allowedDomains?: string[];
+  requireAllowedDomains?: boolean;
+  requireDirectoryProvenance?: boolean;
+  rejectHorizonStrategy?: boolean;
 }
 
 export interface AnchorDirectoryLoadResult {
   rows: AnchorCatalogImportRow[];
   source: string;
   skipped: number;
+  rejectedByDomain: number;
+  allowedDomains: string[];
+  provenance: {
+    strategy?: string;
+    sourceHint?: string;
+  };
 }
 
 const DEFAULT_TIMEOUT_MS = 12000;
@@ -46,6 +56,19 @@ function toHost(value: string): string {
       .replace(/\/.*$/, "")
       .toLowerCase();
   }
+}
+
+function parseHostFromUrl(value: string): string {
+  if (!value.trim()) return "";
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function normalizeDomainList(values: string[]): string[] {
+  return [...new Set(values.map(toHost).filter(Boolean))];
 }
 
 function toId(value: string): string {
@@ -321,6 +344,9 @@ export async function loadAnchorDirectory(
 
   let rowsSource: Record<string, unknown>[] = [];
   let source = "request-body";
+  let strategy: string | undefined;
+  let sourceHint: string | undefined;
+  let payloadDirectoryDomains: string[] = [];
 
   if (Array.isArray(input.anchors)) {
     rowsSource = input.anchors.filter(isRecord);
@@ -331,6 +357,17 @@ export async function loadAnchorDirectory(
     );
     rowsSource = extractRows(payload);
     source = sourceUrl;
+    if (isRecord(payload)) {
+      strategy =
+        typeof payload.strategy === "string" ? payload.strategy.trim() : undefined;
+      sourceHint =
+        typeof payload.source === "string" ? payload.source.trim() : undefined;
+      if (Array.isArray(payload.directoryDomains)) {
+        payloadDirectoryDomains = normalizeDomainList(
+          payload.directoryDomains.filter((d): d is string => typeof d === "string")
+        );
+      }
+    }
     if (!rowsSource.length) {
       throw new Error(
         "No anchor rows found in source payload. Expected JSON/CSV with anchors/data/items/results arrays."
@@ -342,8 +379,43 @@ export async function loadAnchorDirectory(
     );
   }
 
+  const sourceHost = parseHostFromUrl(sourceUrl);
+  const sourceHintHost = parseHostFromUrl(sourceHint ?? "");
+  const normalizedStrategy = (strategy ?? "").toLowerCase();
+
+  if (input.rejectHorizonStrategy !== false && normalizedStrategy.includes("horizon")) {
+    throw new Error("Rejected source payload strategy: horizon");
+  }
+
+  if (input.requireDirectoryProvenance) {
+    const isStellarDomain =
+      sourceHost === "anchors.stellar.org" ||
+      sourceHost.endsWith(".stellar.org");
+    const hasDirectoryHint =
+      sourceHintHost === "anchors.stellar.org" ||
+      sourceHintHost.endsWith(".stellar.org");
+    const strategyLooksDirectory =
+      normalizedStrategy.includes("directory") ||
+      normalizedStrategy.includes("playwright");
+    if (!isStellarDomain && !hasDirectoryHint && !strategyLooksDirectory) {
+      throw new Error(
+        "Directory provenance check failed. Source must come from anchors.stellar.org discovery/export."
+      );
+    }
+  }
+
+  const allowedDomains = normalizeDomainList(
+    input.allowedDomains?.length ? input.allowedDomains : payloadDirectoryDomains
+  );
+  if (input.requireAllowedDomains && allowedDomains.length === 0) {
+    throw new Error(
+      "Allowed domain list is required (allowedDomains[] or payload.directoryDomains[])"
+    );
+  }
+
   const deduped = new Map<string, AnchorCatalogImportRow>();
   let skipped = 0;
+  let rejectedByDomain = 0;
 
   for (const row of rowsSource) {
     const normalizedRows = normalizeRow(row, active);
@@ -352,6 +424,10 @@ export async function loadAnchorDirectory(
       continue;
     }
     for (const normalized of normalizedRows) {
+      if (allowedDomains.length > 0 && !allowedDomains.includes(normalized.domain)) {
+        rejectedByDomain += 1;
+        continue;
+      }
       deduped.set(normalized.id, normalized);
     }
   }
@@ -360,5 +436,11 @@ export async function loadAnchorDirectory(
     rows: [...deduped.values()],
     source,
     skipped,
+    rejectedByDomain,
+    allowedDomains,
+    provenance: {
+      strategy,
+      sourceHint,
+    },
   };
 }
