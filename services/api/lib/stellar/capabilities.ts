@@ -24,6 +24,7 @@ export interface ResolvedAnchorCapabilities {
   };
   diagnostics: string[];
   raw?: {
+    signingKey?: string;
     sep24Info?: unknown;
     sep6Info?: unknown;
   };
@@ -137,6 +138,7 @@ export async function resolveAnchorCapabilities(input: {
     fees,
     diagnostics,
     raw: {
+      signingKey: sep1.signingKey,
       sep24Info,
       sep6Info,
     },

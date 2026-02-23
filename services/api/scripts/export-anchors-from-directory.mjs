@@ -10,6 +10,8 @@ function parseArgs(argv) {
     homeUrl: DEFAULT_HOME_URL,
     outFile: "services/api/data/anchors-export.json",
     minRows: 10,
+    debug: false,
+    rawOutFile: "",
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -30,6 +32,15 @@ function parseArgs(argv) {
         options.minRows = Math.floor(parsed);
       }
       i += 1;
+      continue;
+    }
+    if (arg === "--raw-out" && argv[i + 1]) {
+      options.rawOutFile = argv[i + 1];
+      i += 1;
+      continue;
+    }
+    if (arg === "--debug") {
+      options.debug = true;
     }
   }
 
@@ -38,6 +49,33 @@ function parseArgs(argv) {
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function looksLikeAnchorRecord(value) {
+  if (!isRecord(value)) return false;
+  const row = value;
+  const hasDomain =
+    typeof row.domain === "string" ||
+    typeof row.home_domain === "string" ||
+    typeof row.homeDomain === "string" ||
+    typeof row.website === "string" ||
+    typeof row.url === "string";
+  const hasMeta =
+    Boolean(row.country) ||
+    Boolean(row.countries) ||
+    Boolean(row.country_code) ||
+    Boolean(row.country_codes) ||
+    Boolean(row.countryCode) ||
+    Boolean(row.currency) ||
+    Boolean(row.currencies) ||
+    Boolean(row.currency_code) ||
+    Boolean(row.currency_codes) ||
+    Boolean(row.asset_code) ||
+    Boolean(row.asset_codes) ||
+    Boolean(row.assets) ||
+    Boolean(row.assets_supported);
+
+  return hasDomain && hasMeta;
 }
 
 function unique(values) {
@@ -173,7 +211,7 @@ function collectRecords(input, out, seen = new Set()) {
 
   if (Array.isArray(input)) {
     for (const item of input) {
-      if (isRecord(item)) out.push(item);
+      if (looksLikeAnchorRecord(item)) out.push(item);
       collectRecords(item, out, seen);
     }
     return;
@@ -216,7 +254,7 @@ async function tryUrlCandidates(homeUrl) {
       const rows = [];
       collectRecords(parsed, rows);
       if (rows.length) {
-        return { rows, source: url, strategy: "http-candidate" };
+        return { rows, source: url, strategy: "http-candidate", rawPayload: parsed };
       }
     } catch {
       // keep trying
@@ -242,7 +280,9 @@ async function tryPlaywright(homeUrl) {
     try {
       const url = response.url();
       const ct = (response.headers()["content-type"] || "").toLowerCase();
-      if (!ct.includes("json") && !/anchor|directory|export/i.test(url)) return;
+      const looksRelevantUrl = /anchor|directory|stellar|sep/i.test(url);
+      if (!ct.includes("json") && !looksRelevantUrl) return;
+      if (/mapbox|tile|geojson|country-boundaries/i.test(url)) return;
       const text = await response.text();
       const parsed = JSON.parse(text);
       foundJson.push({ url, parsed });
@@ -266,7 +306,12 @@ async function tryPlaywright(homeUrl) {
     const rows = [];
     collectRecords(candidate.parsed, rows);
     if (rows.length) {
-      return { rows, source: candidate.url, strategy: "playwright-network" };
+      return {
+        rows,
+        source: candidate.url,
+        strategy: "playwright-network",
+        rawPayload: candidate.parsed,
+      };
     }
   }
 
@@ -291,6 +336,45 @@ async function main() {
   const normalized = [];
   for (const row of best.rows) {
     normalized.push(...normalizeRecord(row));
+  }
+
+  if (options.debug) {
+    console.log(
+      JSON.stringify(
+        {
+          source: best.source,
+          strategy: best.strategy,
+          rawRowsFound: best.rows.length,
+          normalizedRowsFound: normalized.length,
+          rawSample: best.rows.slice(0, 5),
+        },
+        null,
+        2
+      )
+    );
+  }
+
+  if (options.rawOutFile) {
+    const rawOutPath = path.resolve(options.rawOutFile);
+    await fs.mkdir(path.dirname(rawOutPath), { recursive: true });
+    await fs.writeFile(
+      rawOutPath,
+      `${JSON.stringify(
+        {
+          generatedAt: new Date().toISOString(),
+          source: best.source,
+          strategy: best.strategy,
+          rawPayload: best.rawPayload ?? null,
+          rawRows: best.rows,
+        },
+        null,
+        2
+      )}\n`,
+      "utf-8"
+    );
+    if (options.debug) {
+      console.log(`Wrote raw payload debug file -> ${rawOutPath}`);
+    }
   }
 
   const dedup = new Map();
@@ -326,4 +410,3 @@ main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
-

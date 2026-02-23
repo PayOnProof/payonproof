@@ -7,6 +7,8 @@ import {
   upsertAnchorsCatalog,
 } from "../../lib/repositories/anchors-catalog.ts";
 import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities.ts";
+import { discoverAnchorsFromHorizon } from "../../lib/stellar/horizon.ts";
+import { evaluateAnchorTrust } from "../../lib/stellar/trust.ts";
 
 const DEFAULT_DIRECTORY_HOME = "https://anchors.stellar.org/";
 
@@ -216,11 +218,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     getQueryValue(req, "directoryHome") ||
     process.env.STELLAR_ANCHOR_DIRECTORY_HOME?.trim() ||
     DEFAULT_DIRECTORY_HOME;
+  const discoveryMode =
+    getQueryValue(req, "mode") ||
+    process.env.ANCHOR_DISCOVERY_MODE?.trim() ||
+    "horizon";
+  const horizonUrl = getQueryValue(req, "horizonUrl");
+  const issuerLimit = parseLimit(getQueryValue(req, "issuerLimit"), 250);
+  const assetPages = parseLimit(getQueryValue(req, "assetPages"), 4);
+  const issuerConcurrency = parseLimit(getQueryValue(req, "issuerConcurrency"), 20);
+  const domainConcurrency = parseLimit(getQueryValue(req, "domainConcurrency"), 8);
   const refreshLimit = parseLimit(getQueryValue(req, "refreshLimit"), 300);
   const sep1DisableThreshold = parseLimit(
     process.env.ANCHOR_SEP1_404_DISABLE_THRESHOLD,
     3
   );
+  const requireSep10 =
+    String(process.env.ANCHOR_TRUST_REQUIRE_SEP10 ?? "true").toLowerCase() !== "false";
+  const requireSigningKey =
+    String(process.env.ANCHOR_TRUST_REQUIRE_SIGNING_KEY ?? "true").toLowerCase() !==
+    "false";
+  const requireSep24OrSep31 =
+    String(process.env.ANCHOR_TRUST_REQUIRE_SEP24_OR_SEP31 ?? "true").toLowerCase() !==
+    "false";
 
   try {
     let importResult: {
@@ -240,7 +259,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         skippedSourceRows: loaded.skipped,
       };
     } else {
-      const loaded = await discoverFromAnchorsStellarOrg(directoryHome);
+      const loaded =
+        discoveryMode === "directory"
+          ? await discoverFromAnchorsStellarOrg(directoryHome)
+          : await (async () => {
+              try {
+                const discovered = await discoverAnchorsFromHorizon({
+                  horizonUrl: horizonUrl || undefined,
+                  issuerLimit,
+                  assetPages,
+                  issuerConcurrency,
+                  domainConcurrency,
+                });
+                return {
+                  source: `horizon:${
+                    horizonUrl ||
+                    process.env.STELLAR_HORIZON_URL ||
+                    "https://horizon.stellar.org"
+                  }`,
+                  rows: discovered.rows,
+                  skipped: 0,
+                };
+              } catch {
+                return await discoverFromAnchorsStellarOrg(directoryHome);
+              }
+            })();
       const written = await upsertAnchorsCatalog(loaded.rows);
       importResult = {
         source: loaded.source,
@@ -286,6 +329,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           diagnostics: resolved.diagnostics,
           lastCheckedAt: new Date().toISOString(),
         });
+
+        const trust = evaluateAnchorTrust({
+          domain: anchor.domain,
+          capabilities: resolved,
+          requireSep10,
+          requireSigningKey,
+          requireSep24OrSep31,
+        });
+        if (!trust.trusted) {
+          await updateAnchorCapabilities({
+            id: anchor.id,
+            sep24: resolved.sep.sep24,
+            sep6: resolved.sep.sep6,
+            sep31: resolved.sep.sep31,
+            sep10: resolved.sep.sep10,
+            operational: false,
+            feeFixed: resolved.fees.fixed,
+            feePercent: resolved.fees.percent,
+            feeSource: resolved.fees.source,
+            transferServerSep24: resolved.endpoints.transferServerSep24,
+            transferServerSep6: resolved.endpoints.transferServerSep6,
+            webAuthEndpoint: resolved.endpoints.webAuthEndpoint,
+            directPaymentServer: resolved.endpoints.directPaymentServer,
+            kycServer: resolved.endpoints.kycServer,
+            diagnostics: [
+              ...resolved.diagnostics,
+              ...trust.reasons.map((r) => `Trust policy: ${r}`),
+            ],
+            lastCheckedAt: new Date().toISOString(),
+          });
+          await setAnchorActive({ id: anchor.id, active: false });
+          refreshed.push({
+            id: anchor.id,
+            domain: anchor.domain,
+            status: "error",
+            error: `Untrusted anchor: ${trust.reasons.join("; ")}`,
+            autoDisabled: true,
+          });
+          continue;
+        }
 
         refreshed.push({ id: anchor.id, domain: anchor.domain, status: "ok" });
       } catch (error) {
@@ -338,6 +421,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       triggeredAt: new Date().toISOString(),
       sourceUrl: sourceUrl ?? null,
       directoryHome,
+      discoveryMode,
+      horizonUrl: horizonUrl || process.env.STELLAR_HORIZON_URL || null,
+      issuerLimit,
+      assetPages,
+      issuerConcurrency,
+      domainConcurrency,
       import: importResult,
       refresh: {
         requested: refreshLimit,

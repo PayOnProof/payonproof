@@ -259,7 +259,8 @@ Then your API cron `/api/cron/anchors-sync` ingests it automatically.
 Vercel cron (API project):
 - Endpoint: `GET /api/cron/anchors-sync`
 - Schedule: every 15 minutes (configured in `services/api/vercel.json`)
-- If `STELLAR_ANCHOR_DIRECTORY_URL` is not set, cron auto-discovers from `https://anchors.stellar.org/` (best effort).
+- Default discovery mode is `horizon` (recommended): discovers issuers/home_domain from Horizon and validates anchors via SEP.
+- If Horizon discovery fails, cron falls back to `https://anchors.stellar.org/` (best effort).
 - Optional protection:
   - set `CRON_SECRET` in API env
   - call manual test with `?secret=YOUR_SECRET`
@@ -280,6 +281,12 @@ curl "http://localhost:3001/api/cron/anchors-sync?secret=YOUR_SECRET&sourceUrl=h
 
 # Optional custom directory home for auto-discovery:
 curl "http://localhost:3001/api/cron/anchors-sync?secret=YOUR_SECRET&directoryHome=https://anchors.stellar.org/"
+
+# Force discovery mode and scope:
+curl "http://localhost:3001/api/cron/anchors-sync?secret=YOUR_SECRET&mode=horizon&issuerLimit=300&assetPages=5"
+
+# Override Horizon network without restart:
+curl "http://localhost:3001/api/cron/anchors-sync?secret=YOUR_SECRET&mode=horizon&horizonUrl=https://horizon.stellar.org&issuerLimit=600&assetPages=8"
 ```
 
 Runtime endpoints for production operations:

@@ -6,6 +6,7 @@ import {
   updateAnchorCapabilities,
 } from "../../../lib/repositories/anchors-catalog.ts";
 import { resolveAnchorCapabilities } from "../../../lib/stellar/capabilities.ts";
+import { evaluateAnchorTrust } from "../../../lib/stellar/trust.ts";
 
 const SEP1_404_COUNTER_PREFIX = "sep1_404_count:";
 
@@ -41,6 +42,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     typeof body.sep1DisableThreshold === "number" && Number.isFinite(body.sep1DisableThreshold)
       ? Math.max(1, Math.min(20, Math.floor(body.sep1DisableThreshold)))
       : Math.max(1, Math.min(20, Number(process.env.ANCHOR_SEP1_404_DISABLE_THRESHOLD ?? 3)));
+  const requireSep10 =
+    String(process.env.ANCHOR_TRUST_REQUIRE_SEP10 ?? "true").toLowerCase() !== "false";
+  const requireSigningKey =
+    String(process.env.ANCHOR_TRUST_REQUIRE_SIGNING_KEY ?? "true").toLowerCase() !==
+    "false";
+  const requireSep24OrSep31 =
+    String(process.env.ANCHOR_TRUST_REQUIRE_SEP24_OR_SEP31 ?? "true").toLowerCase() !==
+    "false";
 
   try {
     const allAnchors = await listActiveAnchors();
@@ -82,6 +91,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           diagnostics: resolved.diagnostics,
           lastCheckedAt: new Date().toISOString(),
         });
+
+        const trust = evaluateAnchorTrust({
+          domain: anchor.domain,
+          capabilities: resolved,
+          requireSep10,
+          requireSigningKey,
+          requireSep24OrSep31,
+        });
+        if (!trust.trusted) {
+          await updateAnchorCapabilities({
+            id: anchor.id,
+            sep24: resolved.sep.sep24,
+            sep6: resolved.sep.sep6,
+            sep31: resolved.sep.sep31,
+            sep10: resolved.sep.sep10,
+            operational: false,
+            feeFixed: resolved.fees.fixed,
+            feePercent: resolved.fees.percent,
+            feeSource: resolved.fees.source,
+            transferServerSep24: resolved.endpoints.transferServerSep24,
+            transferServerSep6: resolved.endpoints.transferServerSep6,
+            webAuthEndpoint: resolved.endpoints.webAuthEndpoint,
+            directPaymentServer: resolved.endpoints.directPaymentServer,
+            kycServer: resolved.endpoints.kycServer,
+            diagnostics: [
+              ...resolved.diagnostics,
+              ...trust.reasons.map((r) => `Trust policy: ${r}`),
+            ],
+            lastCheckedAt: new Date().toISOString(),
+          });
+          await setAnchorActive({ id: anchor.id, active: false });
+          results.push({
+            id: anchor.id,
+            domain: anchor.domain,
+            status: "error",
+            error: `Untrusted anchor: ${trust.reasons.join("; ")}`,
+            autoDisabled: true,
+          });
+          continue;
+        }
 
         results.push({ id: anchor.id, domain: anchor.domain, status: "ok" });
       } catch (error) {

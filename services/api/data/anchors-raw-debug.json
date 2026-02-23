@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-02-23T05:22:14.634Z",
+  "source": "https://api.mapbox.com/v4/mapbox.country-boundaries-v1.json?secure&access_token=pk.eyJ1IjoibGllZnN0b3JlciIsImEiOiJjbHo4bXhycHowMm1oMmlvamVoZHVtbngyIn0._T_Og-L4lwTZT_sC7Pbkiw",
+  "strategy": "playwright-network",
+  "rawPayload": {
+    "bounds": [
+      -180,
+      -85.051129,
+      180,
+      83.667256
+    ],
+    "center": [
+      20.654983520507812,
+      60.02952867267582,
+      6
+    ],
+    "created": 1601862752773,
+    "description": "Global polygon tileset of country boundaries and disputed areas",
+    "filesize": 889139812,
+    "format": "pbf",
+    "id": "mapbox.country-boundaries-v1",
+    "mapbox_logo": true,
+    "maxzoom": 12,
+    "minzoom": 0,
+    "modified": 1718307165305,
+    "mts": true,
+    "name": "Mapbox Countries v1",
+    "private": false,
+    "scheme": "xyz",
+    "tilejson": "3.0.0",
+    "tiles": [
+      "https://a.tiles.mapbox.com/v4/mapbox.country-boundaries-v1/{z}/{x}/{y}.vector.pbf?access_token=pk.eyJ1IjoibGllZnN0b3JlciIsImEiOiJjbHo4bXhycHowMm1oMmlvamVoZHVtbngyIn0._T_Og-L4lwTZT_sC7Pbkiw",
+      "https://b.tiles.mapbox.com/v4/mapbox.country-boundaries-v1/{z}/{x}/{y}.vector.pbf?access_token=pk.eyJ1IjoibGllZnN0b3JlciIsImEiOiJjbHo4bXhycHowMm1oMmlvamVoZHVtbngyIn0._T_Og-L4lwTZT_sC7Pbkiw"
+    ],
+    "vector_layers": [
+      {
+        "fields": {
+          "color_group": "number",
+          "disputed": "string",
+          "iso_3166_1": "string",
+          "iso_3166_1_alpha_3": "string",
+          "mapbox_id": "string",
+          "name": "string",
+          "name_en": "string",
+          "region": "string",
+          "subregion": "string",
+          "wikidata_id": "string",
+          "worldview": "string"
+        },
+        "id": "country_boundaries",
+        "maxzoom": 22,
+        "minzoom": 0,
+        "source": "mapbox.country-boundaries-v1",
+        "source_name": "Mapbox Countries v1"
+      }
+    ],
+    "webpage": "https://studio.mapbox.com/tilesets/mapbox.country-boundaries-v1"
+  },
+  "rawRows": [
+    {
+      "fields": {
+        "color_group": "number",
+        "disputed": "string",
+        "iso_3166_1": "string",
+        "iso_3166_1_alpha_3": "string",
+        "mapbox_id": "string",
+        "name": "string",
+        "name_en": "string",
+        "region": "string",
+        "subregion": "string",
+        "wikidata_id": "string",
+        "worldview": "string"
+      },
+      "id": "country_boundaries",
+      "maxzoom": 22,
+      "minzoom": 0,
+      "source": "mapbox.country-boundaries-v1",
+      "source_name": "Mapbox Countries v1"
+    }
+  ]
+}

@@ -18,6 +18,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const includeNonOperational =
+      req.query &&
+      (req.query.includeNonOperational === "true" ||
+        req.query.includeNonOperational === "1");
+
     const anchors = await listActiveAnchors();
     const grouped = new Map<string, CountryRow>();
 
@@ -43,6 +48,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const countries = [...grouped.values()]
+      .filter((country) => country.code !== "ZZ")
+      .filter((country) =>
+        includeNonOperational ? true : country.operationalAnchors > 0
+      )
       .filter((country) => country.onRampCount > 0 || country.offRampCount > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
 
