@@ -1,0 +1,200 @@
+{
+  "generatedAt": "2026-02-23T08:00:18.645Z",
+  "source": "horizon:https://horizon.stellar.org",
+  "strategy": "horizon-fallback",
+  "homeUrl": "https://anchors.stellar.org/",
+  "anchors": [
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "BTC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "LTC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "ETH"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "BAT"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "LINK"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "USDT"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "BTC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "LTC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "ETH"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "BAT"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "LINK"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "dead.apay.io",
+      "domain": "dead.apay.io",
+      "countries": [
+        "IO"
+      ],
+      "currencies": [
+        "USDT"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "off-ramp",
+      "active": true
+    }
+  ]
+}
