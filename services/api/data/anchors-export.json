@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-23T17:36:19.470Z",
+  "generatedAt": "2026-02-23T17:58:46.699Z",
   "source": "https://anchors.stellar.org/#verified-domains",
   "strategy": "directory-domain-sep",
   "homeUrl": "https://anchors.stellar.org/",
@@ -96,7 +96,7 @@
   ],
   "diagnostics": {
     "domainsTotal": 89,
-    "skippedNoSep": 21,
+    "skippedNoSep": 22,
     "skippedNoAssets": 0,
     "failedToml": 61
   },
@@ -294,54 +294,6 @@
       "active": true
     },
     {
-      "name": "ZEAM LIMITED",
-      "domain": "mint.zeam.money",
-      "countries": [
-        "ZZ"
-      ],
-      "currencies": [
-        "USDC"
-      ],
-      "type": "on-ramp",
-      "active": true
-    },
-    {
-      "name": "ZEAM LIMITED",
-      "domain": "mint.zeam.money",
-      "countries": [
-        "ZZ"
-      ],
-      "currencies": [
-        "NATIVE"
-      ],
-      "type": "on-ramp",
-      "active": true
-    },
-    {
-      "name": "ZEAM LIMITED",
-      "domain": "mint.zeam.money",
-      "countries": [
-        "ZZ"
-      ],
-      "currencies": [
-        "USDC"
-      ],
-      "type": "off-ramp",
-      "active": true
-    },
-    {
-      "name": "ZEAM LIMITED",
-      "domain": "mint.zeam.money",
-      "countries": [
-        "ZZ"
-      ],
-      "currencies": [
-        "NATIVE"
-      ],
-      "type": "off-ramp",
-      "active": true
-    },
-    {
       "name": "nTokens Serviços Digitais Ltda",
       "domain": "ntokens.com",
       "countries": [
@@ -877,40 +829,6 @@
       "currencies": [
         "EUR",
         "EURC"
-      ],
-      "type": "off-ramp",
-      "active": true
-    },
-    {
-      "name": "Zeam",
-      "domain": "mint.zeam.money",
-      "countries": [
-        "CD",
-        "MW",
-        "ZA",
-        "ZM",
-        "ZW"
-      ],
-      "currencies": [
-        "USDC",
-        "XLM"
-      ],
-      "type": "on-ramp",
-      "active": true
-    },
-    {
-      "name": "Zeam",
-      "domain": "mint.zeam.money",
-      "countries": [
-        "CD",
-        "MW",
-        "ZA",
-        "ZM",
-        "ZW"
-      ],
-      "currencies": [
-        "USDC",
-        "XLM"
       ],
       "type": "off-ramp",
       "active": true
