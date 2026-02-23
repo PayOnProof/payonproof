@@ -1,0 +1,51 @@
+name: Anchors Directory Export
+
+on:
+  push:
+    branches:
+      - Branch-Kenneth
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright (ephemeral)
+        run: |
+          npm install --no-save playwright
+          npx playwright install chromium
+
+      - name: Generate anchors export
+        run: |
+          node services/api/scripts/export-anchors-from-directory.mjs \
+            --home-url "https://anchors.stellar.org/" \
+            --horizon-url "https://horizon.stellar.org" \
+            --out "services/api/data/anchors-export.json" \
+            --issuer-limit 600 \
+            --asset-pages 8 \
+            --min-rows 1
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet -- services/api/data/anchors-export.json; then
+            echo "No export changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/api/data/anchors-export.json
+          git commit -m "chore(data): refresh anchors directory export"
+          git push
