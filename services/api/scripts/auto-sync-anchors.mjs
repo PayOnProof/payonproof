@@ -149,8 +149,12 @@ function collectAnchorLikeArrays(input, out, visited = new Set()) {
 }
 
 async function probeImportByUrl(apiBaseUrl, downloadUrl) {
-  const endpoint = `${apiBaseUrl}/api/anchors/directory/import`;
-  const res = await postJson(endpoint, { downloadUrl, dryRun: true });
+  const endpoint = `${apiBaseUrl}/api/anchors/ops`;
+  const res = await postJson(endpoint, {
+    action: "import_directory",
+    downloadUrl,
+    dryRun: true,
+  });
   if (!res.ok) return { ok: false, error: res.payload?.error ?? "unknown error" };
   const normalized = Number(res.payload?.totalNormalized ?? 0);
   if (!Number.isFinite(normalized) || normalized <= 0) {
@@ -167,10 +171,14 @@ async function importAndMaybeRefresh({
   refresh,
   refreshLimit,
 }) {
-  const importEndpoint = `${apiBaseUrl}/api/anchors/directory/import`;
+  const importEndpoint = `${apiBaseUrl}/api/anchors/ops`;
   const importBody = sourceUrl
-    ? { downloadUrl: sourceUrl, dryRun: !apply }
-    : { anchors, dryRun: !apply };
+    ? {
+        action: "import_directory",
+        downloadUrl: sourceUrl,
+        dryRun: !apply,
+      }
+    : { action: "import_directory", anchors, dryRun: !apply };
 
   const imported = await postJson(importEndpoint, importBody);
   if (!imported.ok) {
@@ -181,8 +189,11 @@ async function importAndMaybeRefresh({
     return { import: imported.payload };
   }
 
-  const refreshEndpoint = `${apiBaseUrl}/api/anchors/capabilities/refresh`;
-  const refreshed = await postJson(refreshEndpoint, { limit: refreshLimit });
+  const refreshEndpoint = `${apiBaseUrl}/api/anchors/ops`;
+  const refreshed = await postJson(refreshEndpoint, {
+    action: "refresh_capabilities",
+    limit: refreshLimit,
+  });
   if (!refreshed.ok) {
     throw new Error(refreshed.payload?.error ?? "Capabilities refresh failed");
   }

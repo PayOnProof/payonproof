@@ -124,11 +124,12 @@ async function main() {
     process.exit(1);
   }
 
-  const endpoint = `${options.apiBaseUrl.replace(/\/+$/, "")}/api/anchors/directory/import`;
+  const endpoint = `${options.apiBaseUrl.replace(/\/+$/, "")}/api/anchors/ops`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      action: "import_directory",
       dryRun: options.dryRun,
       active: options.active,
       anchors,

@@ -50,21 +50,13 @@ const routeMap: Record<string, string> = {
   "POST /api/execute-transfer": "./api/execute-transfer.ts",
   "POST /api/generate-proof": "./api/generate-proof.ts",
   "GET /api/test-db": "./api/test-db.ts",
-  "POST /api/anchors/sep1/discover": "./api/anchors/sep1/discover.ts",
-  "POST /api/anchors/sep24/info": "./api/anchors/sep24/info.ts",
+  "POST /api/anchors/diagnostics": "./api/anchors/diagnostics.ts",
+  "GET /api/anchors/ops": "./api/anchors/ops.ts",
+  "POST /api/anchors/ops": "./api/anchors/ops.ts",
   "POST /api/anchors/sep24/callback": "./api/anchors/sep24/callback.ts",
   "GET /api/anchors/sep24/callback": "./api/anchors/sep24/callback.ts",
-  "POST /api/anchors/sep6/info": "./api/anchors/sep6/info.ts",
   "GET /api/anchors/countries": "./api/anchors/countries.ts",
   "GET /api/anchors/catalog": "./api/anchors/catalog.ts",
-  "POST /api/anchors/capabilities/resolve":
-    "./api/anchors/capabilities/resolve.ts",
-  "POST /api/anchors/capabilities/refresh":
-    "./api/anchors/capabilities/refresh.ts",
-  "POST /api/anchors/sep10/token": "./api/anchors/sep10/token.ts",
-  "POST /api/anchors/directory/import": "./api/anchors/directory/import.ts",
-  "GET /api/cron/anchors-sync": "./api/cron/anchors-sync.ts",
-  "POST /api/cron/anchors-sync": "./api/cron/anchors-sync.ts",
 };
 
 async function readJson(req: IncomingMessage) {

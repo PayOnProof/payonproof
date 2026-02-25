@@ -281,7 +281,8 @@ async function main() {
   }
 
   const api = options.apiBaseUrl.replace(/\/+$/, "");
-  const importPayload = await postJson(`${api}/api/anchors/directory/import`, {
+  const importPayload = await postJson(`${api}/api/anchors/ops`, {
+    action: "import_directory",
     anchors: discoveredAnchors,
     dryRun: options.dryRun,
   });
@@ -300,7 +301,8 @@ async function main() {
   );
 
   if (!options.dryRun && options.refresh) {
-    const refreshPayload = await postJson(`${api}/api/anchors/capabilities/refresh`, {
+    const refreshPayload = await postJson(`${api}/api/anchors/ops`, {
+      action: "refresh_capabilities",
       limit: options.refreshLimit,
     });
     console.log(
