@@ -91,13 +91,15 @@ async function main() {
   }
 
   console.log("[1/3] Validating import source...");
-  await postJson(`${api}/api/anchors/directory/import`, {
+  await postJson(`${api}/api/anchors/ops`, {
+    action: "import_directory",
     ...importBody,
     dryRun: true,
   });
 
   console.log("[2/3] Importing anchors into Supabase...");
-  const imported = await postJson(`${api}/api/anchors/directory/import`, {
+  const imported = await postJson(`${api}/api/anchors/ops`, {
+    action: "import_directory",
     ...importBody,
     dryRun: false,
   });
@@ -106,7 +108,8 @@ async function main() {
   );
 
   console.log("[3/3] Refreshing SEP capabilities...");
-  const refreshed = await postJson(`${api}/api/anchors/capabilities/refresh`, {
+  const refreshed = await postJson(`${api}/api/anchors/ops`, {
+    action: "refresh_capabilities",
     limit: options.refreshLimit,
   });
   console.log(
