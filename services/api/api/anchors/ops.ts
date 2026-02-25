@@ -41,6 +41,16 @@ function parseAllowedDomainsFromEnv(): string[] {
     .filter(Boolean);
 }
 
+function parseBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "0") return false;
+  }
+  return fallback;
+}
+
 function getQueryValue(req: VercelRequest, key: string): string | undefined {
   if (req.query && typeof req.query[key] === "string") {
     return (req.query[key] as string).trim();
@@ -234,9 +244,12 @@ async function handleImportDirectory(body: Record<string, unknown>, res: VercelR
   const bodyAllowedDomains = Array.isArray(body.allowedDomains)
     ? body.allowedDomains.filter((d): d is string => typeof d === "string")
     : [];
+  const useEnvAllowedDomains = parseBoolean(body.useEnvAllowedDomains, false);
+  const envAllowedDomains = useEnvAllowedDomains ? parseAllowedDomainsFromEnv() : [];
   const allowedDomains =
-    bodyAllowedDomains.length > 0 ? bodyAllowedDomains : parseAllowedDomainsFromEnv();
-  const requireAllowedDomains = strictDirectory && Boolean(downloadUrl);
+    bodyAllowedDomains.length > 0 ? bodyAllowedDomains : envAllowedDomains;
+  const requireAllowedDomains =
+    strictDirectory && Boolean(downloadUrl) && allowedDomains.length > 0;
 
   const loaded = await loadAnchorDirectory({
     downloadUrl,
@@ -444,20 +457,23 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
     });
   }
 
-  const sourceUrl =
-    asString(body.sourceUrl) ||
-    getQueryValue(req, "sourceUrl") ||
-    process.env.STELLAR_ANCHOR_DIRECTORY_URL?.trim();
-  const directoryHome =
-    asString(body.directoryHome) ||
-    getQueryValue(req, "directoryHome") ||
-    process.env.STELLAR_ANCHOR_DIRECTORY_HOME?.trim() ||
-    DEFAULT_DIRECTORY_HOME;
   const discoveryMode =
     asString(body.mode) ||
     getQueryValue(req, "mode") ||
     process.env.ANCHOR_DISCOVERY_MODE?.trim() ||
     "directory";
+  const sourceUrlFromBody = asString(body.sourceUrl);
+  const sourceUrlFromQuery = getQueryValue(req, "sourceUrl");
+  const configuredSourceUrl = process.env.STELLAR_ANCHOR_DIRECTORY_URL?.trim() ?? "";
+  const sourceUrl =
+    sourceUrlFromBody ||
+    sourceUrlFromQuery ||
+    (discoveryMode === "directory" ? configuredSourceUrl : "");
+  const directoryHome =
+    asString(body.directoryHome) ||
+    getQueryValue(req, "directoryHome") ||
+    process.env.STELLAR_ANCHOR_DIRECTORY_HOME?.trim() ||
+    DEFAULT_DIRECTORY_HOME;
   const allowHorizonFallback =
     body.allowHorizon === true ||
     getQueryValue(req, "allowHorizon") === "true" ||
@@ -488,7 +504,10 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
     process.env.ANCHOR_SEP1_404_DISABLE_THRESHOLD,
     3
   );
-  const allowedDomains = parseAllowedDomainsFromEnv();
+  const useEnvAllowedDomains =
+    parseBoolean(body.useEnvAllowedDomains, false) ||
+    parseBoolean(getQueryValue(req, "useEnvAllowedDomains"), false);
+  const allowedDomains = useEnvAllowedDomains ? parseAllowedDomainsFromEnv() : [];
 
   let importResult: {
     source: string;
@@ -502,7 +521,7 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
       downloadUrl: sourceUrl,
       active: true,
       allowedDomains,
-      requireAllowedDomains: true,
+      requireAllowedDomains: allowedDomains.length > 0,
       requireDirectoryProvenance: true,
       rejectHorizonStrategy: true,
     });
@@ -559,6 +578,7 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
     action: "sync",
     triggeredAt: new Date().toISOString(),
     sourceUrl: sourceUrl || null,
+    useEnvAllowedDomains,
     directoryHome,
     discoveryMode,
     allowHorizonFallback,
@@ -613,4 +633,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(502).json({ status: "error", action, error: message });
   }
 }
-
