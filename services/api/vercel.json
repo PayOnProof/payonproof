@@ -1,9 +1,10 @@
 {
   "framework": null,
+  "outputDirectory": ".",
   "crons": [
     {
       "path": "/api/anchors/ops",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
