@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { listActiveAnchors } from "../../lib/repositories/anchors-catalog";
+import { listActiveAnchors } from "../../lib/repositories/anchors-catalog.js";
 
 interface CountryRow {
   code: string;

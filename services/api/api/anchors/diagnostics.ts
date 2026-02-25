@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../../lib/http";
-import { discoverAnchorFromDomain } from "../../lib/stellar/sep1";
-import { fetchSep24Info } from "../../lib/stellar/sep24";
-import { fetchSep6Info } from "../../lib/stellar/sep6";
-import { requestSep10Token } from "../../lib/stellar/sep10";
-import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities";
+import { readJsonBody } from "../../lib/http.js";
+import { discoverAnchorFromDomain } from "../../lib/stellar/sep1.js";
+import { fetchSep24Info } from "../../lib/stellar/sep24.js";
+import { fetchSep6Info } from "../../lib/stellar/sep6.js";
+import { requestSep10Token } from "../../lib/stellar/sep10.js";
+import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities.js";
 
 type DiagnosticsAction =
   | "sep1_discover"

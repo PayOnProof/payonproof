@@ -1,7 +1,7 @@
-import { discoverAnchorFromDomain } from "./sep1";
-import { fetchSep24Info } from "./sep24";
-import { fetchSep6Info } from "./sep6";
-import type { AnchorCatalogImportRow } from "./anchor-directory";
+import { discoverAnchorFromDomain } from "./sep1.js";
+import { fetchSep24Info } from "./sep24.js";
+import { fetchSep6Info } from "./sep6.js";
+import type { AnchorCatalogImportRow } from "./anchor-directory.js";
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_HORIZON_URL =

@@ -1,4 +1,4 @@
-import type { RemittanceRoute } from "./types";
+import type { RemittanceRoute } from "./types.js";
 
 function normalize(value: number, min: number, max: number): number {
   if (max <= min) return 0;

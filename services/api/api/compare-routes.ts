@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../lib/http";
-import { parseCompareRoutesInput } from "../lib/remittances/compare/schema";
-import { compareRoutesWithAnchors } from "../lib/remittances/compare/service";
+import { readJsonBody } from "../lib/http.js";
+import { parseCompareRoutesInput } from "../lib/remittances/compare/schema.js";
+import { compareRoutesWithAnchors } from "../lib/remittances/compare/service.js";
 
 export default async function handler(
   req: VercelRequest,
