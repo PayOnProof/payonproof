@@ -1,0 +1,9 @@
+{
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/cron/anchors-sync",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

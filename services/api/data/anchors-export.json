@@ -1,0 +1,861 @@
+{
+  "generatedAt": "2026-02-25T17:21:45.044Z",
+  "source": "https://anchors.stellar.org/#verified-domains",
+  "strategy": "directory-domain-sep",
+  "homeUrl": "https://anchors.stellar.org/",
+  "directoryDomains": [
+    "aps.money",
+    "stellar.expert",
+    "www.alfredpay.io",
+    "www.amero.exchange",
+    "arf.one",
+    "armenotech.com",
+    "www.b",
+    "biccos.com",
+    "www.binance.com",
+    "www.bitfinex.com",
+    "bitmama.io",
+    "www.bitnovo.com",
+    "bitso.com",
+    "www.bitstamp.net",
+    "bittrex.com",
+    "www.busha.co",
+    "www.bybit.com",
+    "cex.io",
+    "www.cebuanalhuillier.com",
+    "www.chippercash.com",
+    "www.circle.com",
+    "clickpesa.com",
+    "coinflip.tech",
+    "www.coinmena.com",
+    "www.coinbase.com",
+    "coincheck.com",
+    "coinme.com",
+    "coinone.co.kr",
+    "crypto.com",
+    "digibankar.com",
+    "www.digitra.com",
+    "dollarize.me",
+    "earnbit.com",
+    "www.etherfuse.com",
+    "finclusive.com",
+    "flutterwave.com",
+    "www.alternativesbyft.com",
+    "stablecoin.z.com",
+    "www.gate.io",
+    "www.huobi.com",
+    "www.idt.net",
+    "impalapay.com",
+    "www2.kbtrading.org",
+    "www.kado.money",
+    "www.kucoin.com",
+    "www.latamex.com",
+    "www.lightnet.io",
+    "www.linkio.africa",
+    "www.mercadobitcoin.com.br",
+    "mercuryo.io",
+    "www.moneygram.com",
+    "www.moonpay.com",
+    "mykobo.co",
+    "www.newton.co",
+    "novatti.com",
+    "www.okcoin.com",
+    "onramp.money",
+    "www.owlting.com",
+    "stellar.ex",
+    "pdax.ph",
+    "pmi-americas.com",
+    "paybis.com",
+    "paychant.com",
+    "perahub.com.ph",
+    "puntored.co",
+    "www.ripio.com",
+    "www.sardine.ai",
+    "www.stablecorp.ca",
+    "triple-a.io",
+    "sg.upbit.com",
+    "whitebit.com",
+    "www.wisdomtree.com",
+    "yellowcard.io",
+    "zeam.money",
+    "www.ntokens.com",
+    "home.anclap.com",
+    "www.bilira.co",
+    "chronospay.io",
+    "clpx.finance",
+    "connect.clickpesa.com",
+    "dcm.systems",
+    "franklintempleton.com",
+    "stellar.moneygram.com",
+    "audd.digital",
+    "mint.zeam.money",
+    "ntokens.com",
+    "www.kraken.com",
+    "u.s",
+    "gate.io"
+  ],
+  "diagnostics": {
+    "domainsTotal": 89,
+    "skippedNoSep": 22,
+    "skippedNoAssets": 0,
+    "failedToml": 61
+  },
+  "anchors": [
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "XLM"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "XLM"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "MYKOBO",
+      "domain": "mykobo.co",
+      "countries": [
+        "CO"
+      ],
+      "currencies": [
+        "EURC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "MYKOBO",
+      "domain": "mykobo.co",
+      "countries": [
+        "CO"
+      ],
+      "currencies": [
+        "EURC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "ARS"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "PEN"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "ARS"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "PEN"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "CLPX"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BTCLN"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "CLPX"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BTCLN"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "MoneyGram",
+      "domain": "stellar.moneygram.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "MoneyGram",
+      "domain": "stellar.moneygram.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "nTokens Serviços Digitais Ltda",
+      "domain": "ntokens.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BRL"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "nTokens Serviços Digitais Ltda",
+      "domain": "ntokens.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BRL"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Anclap",
+      "domain": "home.anclap.com",
+      "countries": [
+        "AR",
+        "CL",
+        "CO",
+        "MX",
+        "PE"
+      ],
+      "currencies": [
+        "ARS",
+        "USD",
+        "USDC",
+        "XLM"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Anclap",
+      "domain": "home.anclap.com",
+      "countries": [
+        "AR",
+        "CL",
+        "CO",
+        "MX",
+        "PE"
+      ],
+      "currencies": [
+        "ARS",
+        "USD",
+        "USDC",
+        "XLM"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Finclusive",
+      "domain": "finclusive.com",
+      "countries": [
+        "DY",
+        "HV",
+        "CV",
+        "CI",
+        "GM",
+        "GH",
+        "GN",
+        "GW",
+        "LR",
+        "ML",
+        "MR",
+        "NE",
+        "NG",
+        "SN",
+        "SL",
+        "TG"
+      ],
+      "currencies": [
+        "USD",
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Finclusive",
+      "domain": "finclusive.com",
+      "countries": [
+        "DY",
+        "HV",
+        "CV",
+        "CI",
+        "GM",
+        "GH",
+        "GN",
+        "GW",
+        "LR",
+        "ML",
+        "MR",
+        "NE",
+        "NG",
+        "SN",
+        "SL",
+        "TG"
+      ],
+      "currencies": [
+        "USD",
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "MoneyGram Ramps",
+      "domain": "stellar.moneygram.com",
+      "countries": [
+        "AF",
+        "AL",
+        "AO",
+        "AI",
+        "AR",
+        "AM",
+        "AW",
+        "AU",
+        "BS",
+        "BH",
+        "BB",
+        "BY",
+        "BE",
+        "BZ",
+        "DY",
+        "BM",
+        "BT",
+        "BO",
+        "BW",
+        "BR",
+        "BG",
+        "HV",
+        "BI",
+        "KH",
+        "CM",
+        "CA",
+        "CV",
+        "KY",
+        "CF",
+        "TD",
+        "CL",
+        "CO",
+        "KM",
+        "CR",
+        "CI",
+        "HR",
+        "CW",
+        "CY",
+        "CD",
+        "DK",
+        "DJ",
+        "DM",
+        "DO",
+        "EC",
+        "SV",
+        "GQ",
+        "EE",
+        "SZ",
+        "ET",
+        "FJ",
+        "FI",
+        "FX",
+        "GF",
+        "GA",
+        "GM",
+        "GE",
+        "DE",
+        "GH",
+        "GI",
+        "GR",
+        "GD",
+        "GP",
+        "GU",
+        "GT",
+        "GN",
+        "GW",
+        "GY",
+        "HT",
+        "HN",
+        "HU",
+        "IS",
+        "ID",
+        "IE",
+        "IL",
+        "IT",
+        "JM",
+        "JP",
+        "JO",
+        "KZ",
+        "KE",
+        "XK",
+        "KW",
+        "KG",
+        "LA",
+        "LV",
+        "LB",
+        "LR",
+        "LY",
+        "LT",
+        "LU",
+        "MG",
+        "MW",
+        "MY",
+        "MV",
+        "ML",
+        "MT",
+        "MH",
+        "MQ",
+        "MR",
+        "MU",
+        "YT",
+        "MX",
+        "FM",
+        "MD",
+        "MN",
+        "ME",
+        "MS",
+        "MZ",
+        "NA",
+        "NL",
+        "NZ",
+        "NI",
+        "NE",
+        "NG",
+        "NO",
+        "OM",
+        "PA",
+        "PY",
+        "PE",
+        "PH",
+        "PL",
+        "PT",
+        "PR",
+        "RE",
+        "RO",
+        "RW",
+        "WS",
+        "SA",
+        "SN",
+        "YU",
+        "SC",
+        "SL",
+        "SG",
+        "SX",
+        "SK",
+        "SB",
+        "KR",
+        "SS",
+        "ES",
+        "LK",
+        "SR",
+        "SE",
+        "CH",
+        "TZ",
+        "TH",
+        "TP",
+        "TG",
+        "TO",
+        "TV",
+        "UG",
+        "UA",
+        "AE",
+        "UK",
+        "US",
+        "UY",
+        "UZ",
+        "VU",
+        "VE",
+        "VN",
+        "VG",
+        "VI",
+        "YE",
+        "ZM"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "MoneyGram Ramps",
+      "domain": "stellar.moneygram.com",
+      "countries": [
+        "AF",
+        "AL",
+        "AO",
+        "AI",
+        "AR",
+        "AM",
+        "AW",
+        "AU",
+        "BS",
+        "BH",
+        "BB",
+        "BY",
+        "BE",
+        "BZ",
+        "DY",
+        "BM",
+        "BT",
+        "BO",
+        "BW",
+        "BR",
+        "BG",
+        "HV",
+        "BI",
+        "KH",
+        "CM",
+        "CA",
+        "CV",
+        "KY",
+        "CF",
+        "TD",
+        "CL",
+        "CO",
+        "KM",
+        "CR",
+        "CI",
+        "HR",
+        "CW",
+        "CY",
+        "CD",
+        "DK",
+        "DJ",
+        "DM",
+        "DO",
+        "EC",
+        "SV",
+        "GQ",
+        "EE",
+        "SZ",
+        "ET",
+        "FJ",
+        "FI",
+        "FX",
+        "GF",
+        "GA",
+        "GM",
+        "GE",
+        "DE",
+        "GH",
+        "GI",
+        "GR",
+        "GD",
+        "GP",
+        "GU",
+        "GT",
+        "GN",
+        "GW",
+        "GY",
+        "HT",
+        "HN",
+        "HU",
+        "IS",
+        "ID",
+        "IE",
+        "IL",
+        "IT",
+        "JM",
+        "JP",
+        "JO",
+        "KZ",
+        "KE",
+        "XK",
+        "KW",
+        "KG",
+        "LA",
+        "LV",
+        "LB",
+        "LR",
+        "LY",
+        "LT",
+        "LU",
+        "MG",
+        "MW",
+        "MY",
+        "MV",
+        "ML",
+        "MT",
+        "MH",
+        "MQ",
+        "MR",
+        "MU",
+        "YT",
+        "MX",
+        "FM",
+        "MD",
+        "MN",
+        "ME",
+        "MS",
+        "MZ",
+        "NA",
+        "NL",
+        "NZ",
+        "NI",
+        "NE",
+        "NG",
+        "NO",
+        "OM",
+        "PA",
+        "PY",
+        "PE",
+        "PH",
+        "PL",
+        "PT",
+        "PR",
+        "RE",
+        "RO",
+        "RW",
+        "WS",
+        "SA",
+        "SN",
+        "YU",
+        "SC",
+        "SL",
+        "SG",
+        "SX",
+        "SK",
+        "SB",
+        "KR",
+        "SS",
+        "ES",
+        "LK",
+        "SR",
+        "SE",
+        "CH",
+        "TZ",
+        "TH",
+        "TP",
+        "TG",
+        "TO",
+        "TV",
+        "UG",
+        "UA",
+        "AE",
+        "UK",
+        "US",
+        "UY",
+        "UZ",
+        "VU",
+        "VE",
+        "VN",
+        "VG",
+        "VI",
+        "YE",
+        "ZM"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "MyKobo",
+      "domain": "mykobo.co",
+      "countries": [
+        "AT",
+        "BE",
+        "BG",
+        "HR",
+        "CY",
+        "DK",
+        "EE",
+        "FI",
+        "FX",
+        "DE",
+        "GR",
+        "HU",
+        "IE",
+        "IT",
+        "LT",
+        "LU",
+        "MT",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SK",
+        "SI",
+        "ES",
+        "SE"
+      ],
+      "currencies": [
+        "EUR",
+        "EURC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "MyKobo",
+      "domain": "mykobo.co",
+      "countries": [
+        "AT",
+        "BE",
+        "BG",
+        "HR",
+        "CY",
+        "DK",
+        "EE",
+        "FI",
+        "FX",
+        "DE",
+        "GR",
+        "HU",
+        "IE",
+        "IT",
+        "LT",
+        "LU",
+        "MT",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SK",
+        "SI",
+        "ES",
+        "SE"
+      ],
+      "currencies": [
+        "EUR",
+        "EURC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "nTokens",
+      "domain": "ntokens.com",
+      "countries": [
+        "BR"
+      ],
+      "currencies": [
+        "BRL"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "nTokens",
+      "domain": "ntokens.com",
+      "countries": [
+        "BR"
+      ],
+      "currencies": [
+        "BRL"
+      ],
+      "type": "off-ramp",
+      "active": true
+    }
+  ]
+}

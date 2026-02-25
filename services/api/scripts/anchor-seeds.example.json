@@ -1,0 +1,17 @@
+[
+  {
+    "name": "MoneyGram",
+    "domain": "stellar.moneygram.com",
+    "countries": ["US"],
+    "types": ["on-ramp"],
+    "currencies": ["USD"]
+  },
+  {
+    "name": "Bitso",
+    "domain": "bitso.com",
+    "countries": ["MX"],
+    "types": ["off-ramp"],
+    "currencies": ["MXN"]
+  }
+]
+
