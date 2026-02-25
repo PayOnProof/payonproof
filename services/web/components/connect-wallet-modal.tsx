@@ -5,41 +5,21 @@ import React from "react"
 import { useCallback, useRef } from "react";
 import { X, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useWallet, type WalletType } from "@/lib/wallet-context";
+import { useWallet } from "@/lib/wallet-context";
 
-interface WalletOption {
-  id: WalletType;
-  name: string;
-  color: string;
-}
-
-const WALLETS: WalletOption[] = [
-  { id: "freighter", name: "Freighter", color: "#7B61FF" },
-  { id: "metamask", name: "MetaMask", color: "#E2761B" },
-  { id: "walletconnect", name: "WalletConnect", color: "#3B99FC" },
-  { id: "coinbase", name: "Coinbase Wallet", color: "#0052FF" },
-  { id: "trust", name: "Trust Wallet", color: "#3375BB" },
-];
-
-function WalletIcon({ wallet, size = 36 }: { wallet: WalletOption; size?: number }) {
-  const initials = wallet.name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2);
-
+function WalletIcon({ size = 36 }: { size?: number }) {
   return (
     <div
       className="flex items-center justify-center rounded-xl font-bold text-foreground"
       style={{
         width: size,
         height: size,
-        backgroundColor: wallet.color,
+        backgroundColor: "#7B61FF",
         fontSize: size * 0.35,
       }}
       aria-hidden="true"
     >
-      {initials}
+      FR
     </div>
   );
 }
@@ -79,17 +59,14 @@ export function ConnectWalletModal({ open, onClose }: ConnectWalletModalProps) {
     [onClose, status]
   );
 
-  const handleWalletClick = useCallback(
-    (walletType: WalletType) => {
-      connect(walletType).then(() => {
+  const handleWalletClick = useCallback(() => {
+      connect("freighter").then(() => {
         // Close on success after a brief delay
         setTimeout(() => {
           onClose();
         }, 500);
       });
-    },
-    [connect, onClose]
-  );
+    }, [connect, onClose]);
 
   if (!open) return null;
 
@@ -128,7 +105,7 @@ export function ConnectWalletModal({ open, onClose }: ConnectWalletModalProps) {
           Connect Your Wallet
         </h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          Select a wallet provider to connect to POP
+          Connect Freighter to continue
         </p>
 
         {/* Error state */}
@@ -185,40 +162,37 @@ export function ConnectWalletModal({ open, onClose }: ConnectWalletModalProps) {
 
         {/* Wallet list */}
         <div className="flex flex-col gap-2">
-          {WALLETS.map((wallet, i) => (
-            <button
-              key={wallet.id}
-              onClick={(e) => {
-                addRipple(e);
-                handleWalletClick(wallet.id);
-              }}
-              disabled={status === "connecting"}
-              className={cn(
-                "ripple-container flex items-center gap-4 rounded-xl border border-border p-4",
-                "transition-all duration-200",
-                "hover:border-primary/50 hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5",
-                "active:scale-[0.98] active:shadow-sm",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
-                "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none",
-                "animate-fade-in-up",
-                `stagger-${i + 1}`
-              )}
-              style={{ opacity: 0 }}
+          <button
+            onClick={(e) => {
+              addRipple(e);
+              handleWalletClick();
+            }}
+            disabled={status === "connecting"}
+            className={cn(
+              "ripple-container flex items-center gap-4 rounded-xl border border-border p-4",
+              "transition-all duration-200",
+              "hover:border-primary/50 hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5",
+              "active:scale-[0.98] active:shadow-sm",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+              "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none",
+              "animate-fade-in-up",
+              "stagger-1"
+            )}
+            style={{ opacity: 0 }}
+          >
+            <WalletIcon />
+            <span className="font-medium text-foreground">Freighter</span>
+            <svg
+              className="ml-auto h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
             >
-              <WalletIcon wallet={wallet} />
-              <span className="font-medium text-foreground">{wallet.name}</span>
-              <svg
-                className="ml-auto h-5 w-5 text-muted-foreground transition-transform group-hover:translate-x-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          ))}
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
 
         {/* Footer */}

@@ -11,11 +11,7 @@ import React, {
 } from "react";
 
 export type WalletType =
-  | "freighter"
-  | "metamask"
-  | "walletconnect"
-  | "coinbase"
-  | "trust";
+  | "freighter";
 
 export type ConnectionStatus =
   | "disconnected"
@@ -41,23 +37,26 @@ const WalletContext = createContext<WalletContextValue | null>(null);
 
 const STORAGE_KEY = "pop_wallet_state";
 
-function generateMockAddress(walletType: WalletType): string {
-  const chars = "0123456789abcdef";
-  let addr = "";
-  for (let i = 0; i < 40; i++) {
-    addr += chars[Math.floor(Math.random() * chars.length)];
-  }
-  if (walletType === "freighter") {
-    return "G" + addr.toUpperCase().slice(0, 55);
-  }
-  return "0x" + addr;
-}
-
 function truncateAddress(address: string): string {
   if (address.startsWith("G")) {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   }
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function normalizeStoredAddress(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as { address?: unknown }).address === "string"
+  ) {
+    const nested = (value as { address: string }).address.trim();
+    return nested || null;
+  }
+  return null;
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
@@ -77,13 +76,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.address && parsed.walletType) {
+        const address = normalizeStoredAddress(parsed.address);
+        if (address && parsed.walletType === "freighter") {
           setState({
             status: "connected",
-            address: parsed.address,
+            address,
             walletType: parsed.walletType,
             error: null,
           });
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
         }
       }
     } catch {
@@ -117,18 +119,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   });
 
   try {
-    let address: string;
-
-    if (walletType === "freighter") {
-      const result = await connectFreighter();
-      address = result.address;
-    } else {
-      // Mock para otros wallets
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000)
-      );
-      address = generateMockAddress(walletType);
+    if (walletType !== "freighter") {
+      throw new Error("Only Freighter is supported.");
     }
+    const address = await connectFreighter();
 
     setState({
       status: "connected",
@@ -162,9 +156,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lastAttemptedWallet, connect]);
 
-  const truncatedAddress = state.address
-    ? truncateAddress(state.address)
-    : null;
+  const truncatedAddress =
+    typeof state.address === "string" ? truncateAddress(state.address) : null;
 
   return (
     <WalletContext.Provider

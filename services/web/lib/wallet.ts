@@ -14,8 +14,14 @@ export async function connectFreighter() {
   }
 
   await requestAccess();
-  const address = await getAddress();
-  return address;
+  const response = await getAddress();
+  if (response.error) {
+    throw new Error(response.error.message || "Unable to read Freighter address");
+  }
+  if (!response.address || typeof response.address !== "string") {
+    throw new Error("Freighter did not return a valid address");
+  }
+  return response.address;
 }
 
 export async function signFreighterTransaction(input: {

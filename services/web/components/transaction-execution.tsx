@@ -117,7 +117,7 @@ export function TransactionExecution({
               {phase === "success" ? "Transfer Started" : "Confirm Transfer"}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Real SEP-10 + SEP-24 flow with your Freighter wallet
+              SEP-10 + SEP-24 flow with your Freighter wallet
             </p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function TransactionExecution({
               ) : (
                 <>
                   <Lock className="mr-2 h-4 w-4" />
-                  Confirm & Start Real Transfer
+                  Confirm & Start Transfer
                 </>
               )}
             </Button>
