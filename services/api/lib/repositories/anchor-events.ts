@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "../supabase.ts";
+import { getSupabaseAdmin } from "../supabase";
 
 export interface AnchorCallbackEvent {
   transactionId: string;

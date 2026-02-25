@@ -1,6 +1,6 @@
-import { discoverAnchorFromDomain } from "./sep1.ts";
-import { fetchSep24Info } from "./sep24.ts";
-import { fetchSep6Info } from "./sep6.ts";
+import { discoverAnchorFromDomain } from "./sep1";
+import { fetchSep24Info } from "./sep24";
+import { fetchSep6Info } from "./sep6";
 
 export interface ResolvedAnchorCapabilities {
   domain: string;

@@ -1,4 +1,4 @@
-import type { CompareRoutesInput } from "./types.ts";
+import type { CompareRoutesInput } from "./types";
 
 export function parseCompareRoutesInput(payload: Record<string, unknown>): {
   ok: true;

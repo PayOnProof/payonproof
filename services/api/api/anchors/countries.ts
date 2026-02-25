@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { listActiveAnchors } from "../../lib/repositories/anchors-catalog.ts";
+import { listActiveAnchors } from "../../lib/repositories/anchors-catalog";
 
 interface CountryRow {
   code: string;
@@ -10,7 +10,11 @@ interface CountryRow {
   operationalAnchors: number;
 }
 
-const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countryNames =
+  typeof Intl !== "undefined" &&
+  typeof (Intl as unknown as { DisplayNames?: unknown }).DisplayNames === "function"
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -30,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const code = anchor.country.toUpperCase();
       const current = grouped.get(code) ?? {
         code,
-        name: countryNames.of(code) ?? code,
+        name: countryNames?.of(code) ?? code,
         currencies: [],
         onRampCount: 0,
         offRampCount: 0,

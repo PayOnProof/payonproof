@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../lib/http.ts";
-import { getStellarConfig } from "../lib/stellar.ts";
+import { readJsonBody } from "../lib/http";
+import { getStellarConfig } from "../lib/stellar";
 
 /**
  * POST /api/generate-proof

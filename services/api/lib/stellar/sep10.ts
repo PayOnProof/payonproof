@@ -1,6 +1,6 @@
 import { Keypair, TransactionBuilder, WebAuth } from "@stellar/stellar-sdk";
-import { discoverAnchorFromDomain } from "./sep1.ts";
-import { getStellarConfig } from "../stellar.ts";
+import { discoverAnchorFromDomain } from "./sep1";
+import { getStellarConfig } from "../stellar";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 

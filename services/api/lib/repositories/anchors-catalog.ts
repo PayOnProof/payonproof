@@ -1,6 +1,6 @@
-import { getSupabaseAdmin } from "../supabase.ts";
-import type { AnchorCatalogEntry } from "../remittances/compare/types.ts";
-import type { AnchorCatalogImportRow } from "../stellar/anchor-directory.ts";
+import { getSupabaseAdmin } from "../supabase";
+import type { AnchorCatalogEntry } from "../remittances/compare/types";
+import type { AnchorCatalogImportRow } from "../stellar/anchor-directory";
 
 interface AnchorCatalogRow {
   id: string;

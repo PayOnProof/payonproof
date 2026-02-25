@@ -1,16 +1,16 @@
-import { resolveAnchorCapabilities } from "../../stellar/capabilities.ts";
-import { scoreRoutes } from "./scoring.ts";
+import { resolveAnchorCapabilities } from "../../stellar/capabilities";
+import { scoreRoutes } from "./scoring";
 import {
   getAnchorsForCorridor,
   updateAnchorCapabilities,
-} from "../../repositories/anchors-catalog.ts";
-import { getFxRate } from "./fx.ts";
+} from "../../repositories/anchors-catalog";
+import { getFxRate } from "./fx";
 import type {
   AnchorCatalogEntry,
   AnchorRuntime,
   CompareRoutesInput,
   RemittanceRoute,
-} from "./types.ts";
+} from "./types";
 
 const BRIDGE_FEE_PERCENT = 0.2;
 const CAPABILITY_REFRESH_MS = 10 * 60 * 1000;

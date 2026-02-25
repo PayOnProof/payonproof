@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../../../lib/http.ts";
-import { upsertAnchorCallbackEvent } from "../../../lib/repositories/anchor-events.ts";
+import { readJsonBody } from "../../../lib/http";
+import { upsertAnchorCallbackEvent } from "../../../lib/repositories/anchor-events";
 
 function getQueryParam(req: VercelRequest, key: string): string {
   if (req.query && typeof req.query[key] === "string") {

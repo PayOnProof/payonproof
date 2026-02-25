@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getLatestLedgerSequence, getStellarConfig } from "../lib/stellar.ts";
+import { getLatestLedgerSequence, getStellarConfig } from "../lib/stellar";
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return await Promise.race([

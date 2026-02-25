@@ -1,4 +1,4 @@
-import type { ResolvedAnchorCapabilities } from "./capabilities.ts";
+import type { ResolvedAnchorCapabilities } from "./capabilities";
 
 export interface AnchorTrustInput {
   domain: string;

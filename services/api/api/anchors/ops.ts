@@ -1,15 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../../lib/http.ts";
-import { loadAnchorDirectory } from "../../lib/stellar/anchor-directory.ts";
+import { readJsonBody } from "../../lib/http";
+import { loadAnchorDirectory } from "../../lib/stellar/anchor-directory";
 import {
   listActiveAnchors,
   setAnchorActive,
   updateAnchorCapabilities,
   upsertAnchorsCatalog,
-} from "../../lib/repositories/anchors-catalog.ts";
-import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities.ts";
-import { discoverAnchorsFromHorizon } from "../../lib/stellar/horizon.ts";
-import { evaluateAnchorTrust } from "../../lib/stellar/trust.ts";
+} from "../../lib/repositories/anchors-catalog";
+import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities";
+import { discoverAnchorsFromHorizon } from "../../lib/stellar/horizon";
+import { evaluateAnchorTrust } from "../../lib/stellar/trust";
 
 type OpsAction = "import_directory" | "refresh_capabilities" | "sync";
 

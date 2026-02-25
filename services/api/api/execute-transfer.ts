@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { readJsonBody } from "../lib/http.ts";
-import { listActiveAnchors } from "../lib/repositories/anchors-catalog.ts";
-import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events.ts";
-import type { AnchorCatalogEntry } from "../lib/remittances/compare/types.ts";
-import { resolveAnchorCapabilities } from "../lib/stellar/capabilities.ts";
-import { getPopEnv, getStellarConfig } from "../lib/stellar.ts";
+import { readJsonBody } from "../lib/http";
+import { listActiveAnchors } from "../lib/repositories/anchors-catalog";
+import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events";
+import type { AnchorCatalogEntry } from "../lib/remittances/compare/types";
+import { resolveAnchorCapabilities } from "../lib/stellar/capabilities";
+import { getPopEnv, getStellarConfig } from "../lib/stellar";
 
 /**
  * POST /api/execute-transfer
