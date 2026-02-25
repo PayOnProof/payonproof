@@ -173,11 +173,7 @@ async function importAndMaybeRefresh({
 }) {
   const importEndpoint = `${apiBaseUrl}/api/anchors/ops`;
   const importBody = sourceUrl
-    ? {
-        action: "import_directory",
-        downloadUrl: sourceUrl,
-        dryRun: !apply,
-      }
+    ? { action: "import_directory", downloadUrl: sourceUrl, dryRun: !apply }
     : { action: "import_directory", anchors, dryRun: !apply };
 
   const imported = await postJson(importEndpoint, importBody);
