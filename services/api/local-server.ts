@@ -52,6 +52,8 @@ const routeMap: Record<string, string> = {
   "GET /api/test-db": "./api/test-db.ts",
   "POST /api/anchors/sep1/discover": "./api/anchors/sep1/discover.ts",
   "POST /api/anchors/sep24/info": "./api/anchors/sep24/info.ts",
+  "POST /api/anchors/sep24/callback": "./api/anchors/sep24/callback.ts",
+  "GET /api/anchors/sep24/callback": "./api/anchors/sep24/callback.ts",
   "POST /api/anchors/sep6/info": "./api/anchors/sep6/info.ts",
   "GET /api/anchors/countries": "./api/anchors/countries.ts",
   "GET /api/anchors/catalog": "./api/anchors/catalog.ts",

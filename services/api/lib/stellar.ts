@@ -1,12 +1,27 @@
 import { Horizon } from "@stellar/stellar-sdk";
 
+export type PopEnv = "production" | "staging";
+
+export function getPopEnv(): PopEnv {
+  const raw = (process.env.POP_ENV ?? "production").trim().toLowerCase();
+  return raw === "staging" ? "staging" : "production";
+}
+
 export function getStellarConfig() {
+  const popEnv = getPopEnv();
+  const defaultHorizonUrl =
+    popEnv === "production"
+      ? "https://horizon.stellar.org"
+      : "https://horizon-testnet.stellar.org";
+  const defaultPassphrase =
+    popEnv === "production"
+      ? "Public Global Stellar Network ; September 2015"
+      : "Test SDF Network ; September 2015";
+
   return {
-    horizonUrl:
-      process.env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org",
-    networkPassphrase:
-      process.env.STELLAR_NETWORK_PASSPHRASE ??
-      "Test SDF Network ; September 2015",
+    popEnv,
+    horizonUrl: process.env.STELLAR_HORIZON_URL ?? defaultHorizonUrl,
+    networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE ?? defaultPassphrase,
   };
 }
 

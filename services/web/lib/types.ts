@@ -59,6 +59,24 @@ export interface Transaction {
   createdAt: string;
   completedAt?: string;
   stellarTxHash?: string;
+  senderAccount?: string;
+  statusRef?: string;
+  callbackUrl?: string;
+  popEnv?: "production" | "staging";
+  anchorFlows?: {
+    originDeposit?: {
+      id?: string;
+      url: string;
+      type?: string;
+      anchorName?: string;
+    };
+    destinationWithdraw?: {
+      id?: string;
+      url: string;
+      type?: string;
+      anchorName?: string;
+    };
+  };
   proofOfPayment?: ProofOfPayment;
 }
 
