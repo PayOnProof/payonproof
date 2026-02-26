@@ -562,17 +562,28 @@ async function startSep24Interactive(input: {
     if (input.memo) requestBody.memo = input.memo;
     if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
 
-    // Some anchors (MoneyGram sandbox) require JSON, others expect form-encoded.
+    // MoneyGram SEP-24 expects JSON payloads.
+    const isMoneyGramSep24 = /moneygram\.com$/i.test(
+      (() => {
+        try {
+          return new URL(transferServer).hostname;
+        } catch {
+          return transferServer;
+        }
+      })()
+    );
     const transportAttempts: Array<{ contentType: string; body: string }> = [
       {
         contentType: "application/json",
         body: JSON.stringify(requestBody),
       },
-      {
+    ];
+    if (!isMoneyGramSep24) {
+      transportAttempts.push({
         contentType: "application/x-www-form-urlencoded",
         body: new URLSearchParams(requestBody).toString(),
-      },
-    ];
+      });
+    }
 
     for (const transport of transportAttempts) {
       const response = await fetch(endpoint, {
