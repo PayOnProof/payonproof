@@ -61,12 +61,19 @@ export function TransactionExecution({
       });
 
       const signatures = {} as Record<"origin" | "destination", string>;
+      const signatureByChallenge = new Map<string, string>();
       for (const anchor of prepared.anchors) {
-        const signedTxXdr = await signFreighterTransaction({
-          transactionXdr: anchor.challengeXdr,
-          networkPassphrase: anchor.networkPassphrase,
-          address: walletAddress,
-        });
+        const cached = signatureByChallenge.get(anchor.challengeXdr);
+        const signedTxXdr =
+          cached ??
+          (await signFreighterTransaction({
+            transactionXdr: anchor.challengeXdr,
+            networkPassphrase: anchor.networkPassphrase,
+            address: walletAddress,
+          }));
+        if (!cached) {
+          signatureByChallenge.set(anchor.challengeXdr, signedTxXdr);
+        }
         signatures[anchor.role] = signedTxXdr;
       }
 
