@@ -190,9 +190,16 @@ function isSep24AssetSupported(
   const sectionName = role === "origin" ? "deposit" : "withdraw";
   const section = root[sectionName];
   if (!section || typeof section !== "object") return true;
-  const keys = Object.keys(section as Record<string, unknown>);
+  const sectionObj = section as Record<string, unknown>;
+  const keys = Object.keys(sectionObj);
   if (keys.length === 0) return true;
-  return keys.some((key) => matchesSepAssetKey(key, assetCode));
+  return keys.some((key) => {
+    if (!matchesSepAssetKey(key, assetCode)) return false;
+    const row = sectionObj[key];
+    if (!row || typeof row !== "object") return true;
+    const enabled = (row as Record<string, unknown>).enabled;
+    return enabled !== false;
+  });
 }
 
 function parseSep24AssetKey(key: string): { assetCode: string; assetIssuer?: string } | null {
