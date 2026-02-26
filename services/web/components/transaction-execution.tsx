@@ -62,7 +62,20 @@ export function TransactionExecution({
 
       const signatures = {} as Record<"origin" | "destination", string>;
       const signatureByChallenge = new Map<string, string>();
+      const signatureByAnchorContext = new Map<string, string>();
       for (const anchor of prepared.anchors) {
+        const anchorContextKey = [
+          anchor.anchorId,
+          anchor.webAuthEndpoint,
+          anchor.account,
+          anchor.networkPassphrase,
+        ].join("|");
+        const fromContext = signatureByAnchorContext.get(anchorContextKey);
+        if (fromContext) {
+          signatures[anchor.role] = fromContext;
+          continue;
+        }
+
         const cached = signatureByChallenge.get(anchor.challengeXdr);
         const signedTxXdr =
           cached ??
@@ -74,6 +87,7 @@ export function TransactionExecution({
         if (!cached) {
           signatureByChallenge.set(anchor.challengeXdr, signedTxXdr);
         }
+        signatureByAnchorContext.set(anchorContextKey, signedTxXdr);
         signatures[anchor.role] = signedTxXdr;
       }
 
