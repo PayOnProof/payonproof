@@ -589,6 +589,11 @@ function resolveMoneyGramUserMemo(): string | undefined {
   return String(parsed);
 }
 
+function isMoneyGramUserIdRequired(): boolean {
+  const raw = (process.env.MONEYGRAM_REQUIRE_USER_ID ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "1";
+}
+
 async function prepareAnchorAuth(input: {
   role: "origin" | "destination";
   anchor: AnchorCatalogEntry;
@@ -600,9 +605,9 @@ async function prepareAnchorAuth(input: {
   const executionDomain = resolveAnchorDomainForExecution(input.anchor.domain);
   const isMoneyGram = isMoneyGramDomain(executionDomain);
   const moneyGramMemo = isMoneyGram ? resolveMoneyGramUserMemo() : undefined;
-  if (isMoneyGram && !moneyGramMemo) {
+  if (isMoneyGram && isMoneyGramUserIdRequired() && !moneyGramMemo) {
     throw new Error(
-      "MoneyGram requires a user integer memo for SEP-10 challenge. Set MONEYGRAM_USER_ID (or MONEYGRAM_TEST_USER_ID) in API env."
+      "MoneyGram user integer memo is required by current config. Set MONEYGRAM_USER_ID (or MONEYGRAM_TEST_USER_ID), or disable MONEYGRAM_REQUIRE_USER_ID."
     );
   }
   if (isMoneyGram && !input.clientDomain) {
