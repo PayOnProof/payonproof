@@ -78,9 +78,10 @@ function normalizeAssetCode(value: string): string {
   return code;
 }
 
-function parseAllowedAssets(): Set<string> {
+function parseAllowedAssets(): Set<string> | null {
   const raw = process.env.ANCHOR_ALLOWED_ASSETS?.trim() ?? "";
   if (!raw) return new Set(DEFAULT_ALLOWED_ASSETS);
+  if (raw === "*" || raw.toUpperCase() === "ALL") return null;
   const values = raw
     .split(/[,\s;]+/g)
     .map((item) => normalizeAssetCode(item))
@@ -105,7 +106,9 @@ function normalizeDomainForFilter(domain: string): string {
 
 function isAnchorAllowed(anchor: AnchorCatalogEntry): boolean {
   const allowedAssets = parseAllowedAssets();
-  if (!allowedAssets.has(normalizeAssetCode(anchor.currency))) return false;
+  if (allowedAssets && !allowedAssets.has(normalizeAssetCode(anchor.currency))) {
+    return false;
+  }
 
   const allowedDomains = parseAllowedDomains();
   if (allowedDomains.size === 0) return true;
