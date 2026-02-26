@@ -731,6 +731,17 @@ function resolveMoneyGramUserMemo(): string | undefined {
   return String(parsed);
 }
 
+function resolveMoneyGramUsdcIssuer(): string {
+  const explicit = process.env.MONEYGRAM_USDC_ISSUER?.trim();
+  if (explicit) return explicit;
+  if (getPopEnv() === "staging") {
+    // MoneyGram Sandbox/Testnet USDC issuer
+    return "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+  }
+  // MoneyGram Preview/Production USDC issuer
+  return "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+}
+
 function isMoneyGramUserIdRequired(): boolean {
   const raw = (process.env.MONEYGRAM_REQUIRE_USER_ID ?? "").trim().toLowerCase();
   return raw === "true" || raw === "1";
@@ -834,6 +845,10 @@ async function prepareAnchorAuth(input: {
         } in SEP-24 /info`
       );
     }
+  }
+
+  if (isMoneyGram && effectiveAssetCode === "USDC" && !effectiveAssetIssuer) {
+    effectiveAssetIssuer = resolveMoneyGramUsdcIssuer();
   }
 
   const challenge = await fetchSep10Challenge({
