@@ -613,6 +613,16 @@ async function prepareAnchorAuth(input: {
   };
 }
 
+function clonePreparedAnchorWithRole(
+  base: PreparedAnchorAuth,
+  role: "origin" | "destination"
+): PreparedAnchorAuth {
+  return {
+    ...base,
+    role,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCorsPreflight(req, res, ["POST", "OPTIONS"])) return;
   applyCors(req, res, ["POST", "OPTIONS"]);
@@ -691,24 +701,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .slice(2, 8)
         .toUpperCase()}`;
 
-      const preparedAnchors = await Promise.all([
-        prepareAnchorAuth({
-          role: "origin",
-          anchor: originAnchor,
-          assetCode: asString(route.originCurrency) || originAnchor.currency,
-          amount,
-          account: senderAccount,
-          clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
-        }),
-        prepareAnchorAuth({
-          role: "destination",
-          anchor: destinationAnchor,
-          assetCode: asString(route.destinationCurrency) || destinationAnchor.currency,
-          amount,
-          account: senderAccount,
-          clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
-        }),
-      ]);
+      const originAssetCode =
+        asString(route.originCurrency) || originAnchor.currency;
+      const destinationAssetCode =
+        asString(route.destinationCurrency) || destinationAnchor.currency;
+      const sameAnchorAndAsset =
+        originAnchor.id === destinationAnchor.id &&
+        originAssetCode.toUpperCase() === destinationAssetCode.toUpperCase();
+
+      const preparedAnchors = sameAnchorAndAsset
+        ? await (async () => {
+            const shared = await prepareAnchorAuth({
+              role: "origin",
+              anchor: originAnchor,
+              assetCode: originAssetCode,
+              amount,
+              account: senderAccount,
+              clientDomain: shouldSendSep10ClientDomain()
+                ? clientDomain
+                : undefined,
+            });
+            return [
+              clonePreparedAnchorWithRole(shared, "origin"),
+              clonePreparedAnchorWithRole(shared, "destination"),
+            ];
+          })()
+        : await Promise.all([
+            prepareAnchorAuth({
+              role: "origin",
+              anchor: originAnchor,
+              assetCode: originAssetCode,
+              amount,
+              account: senderAccount,
+              clientDomain: shouldSendSep10ClientDomain()
+                ? clientDomain
+                : undefined,
+            }),
+            prepareAnchorAuth({
+              role: "destination",
+              anchor: destinationAnchor,
+              assetCode: destinationAssetCode,
+              amount,
+              account: senderAccount,
+              clientDomain: shouldSendSep10ClientDomain()
+                ? clientDomain
+                : undefined,
+            }),
+          ]);
 
       const prepared: PreparedTransferPayload = {
         transactionId,
