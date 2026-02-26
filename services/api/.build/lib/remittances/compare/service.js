@@ -62,7 +62,11 @@ async function resolveAnchorRuntime(anchor) {
             domain: anchor.domain,
             assetCode: anchor.currency,
         });
-        const operational = resolved.sep.sep24 || resolved.sep.sep6 || resolved.sep.sep31;
+        // Production remittance flow requires SEP-10 auth + SEP-24 interactive flow.
+        const operational = Boolean(resolved.sep.sep10 &&
+            resolved.sep.sep24 &&
+            resolved.endpoints.webAuthEndpoint &&
+            resolved.endpoints.transferServerSep24);
         const runtime = {
             catalog: anchor,
             sep: {
@@ -214,8 +218,12 @@ export async function compareRoutesWithAnchors(input) {
         destination: input.destination,
     });
     const runtimes = await Promise.all(anchors.map(resolveAnchorRuntime));
-    const originAnchors = runtimes.filter((r) => r.catalog.type === "on-ramp" && r.catalog.country === input.origin);
-    const destinationAnchors = runtimes.filter((r) => r.catalog.type === "off-ramp" && r.catalog.country === input.destination);
+    const originAnchors = runtimes.filter((r) => r.catalog.type === "on-ramp" &&
+        r.catalog.country === input.origin &&
+        r.operational);
+    const destinationAnchors = runtimes.filter((r) => r.catalog.type === "off-ramp" &&
+        r.catalog.country === input.destination &&
+        r.operational);
     let exchangeRate;
     if (originAnchors.length > 0 && destinationAnchors.length > 0) {
         exchangeRate = await getFxRate(originAnchors[0].catalog.currency, destinationAnchors[0].catalog.currency);

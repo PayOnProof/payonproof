@@ -4,6 +4,7 @@ import { listActiveAnchors } from "../lib/repositories/anchors-catalog.js";
 import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events.js";
 import { resolveAnchorCapabilities } from "../lib/stellar/capabilities.js";
 import { getPopEnv, getStellarConfig } from "../lib/stellar.js";
+import { applyCors, handleCorsPreflight } from "../lib/cors.js";
 function asString(value) {
     return typeof value === "string" ? value.trim() : "";
 }
@@ -71,6 +72,14 @@ function resolveClientDomain(req) {
     if (getPopEnv() === "staging")
         return "localhost";
     return "";
+}
+function shouldSendSep10ClientDomain() {
+    const raw = (process.env.SEP10_SEND_CLIENT_DOMAIN ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
+}
+function shouldSendSep10HomeDomain() {
+    const raw = (process.env.SEP10_SEND_HOME_DOMAIN ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
 }
 function getCallbackSecret() {
     const secret = process.env.ANCHOR_CALLBACK_SECRET?.trim() ?? "";
@@ -169,26 +178,54 @@ function decryptStatusRef(statusRef) {
 }
 async function fetchSep10Challenge(input) {
     const webAuthEndpoint = normalizeBaseUrl(input.webAuthEndpoint);
-    let challengeUrl = appendQuery(webAuthEndpoint, "account", input.account);
-    challengeUrl = appendQuery(challengeUrl, "memo", input.memo);
-    challengeUrl = appendQuery(challengeUrl, "home_domain", input.homeDomain);
-    challengeUrl = appendQuery(challengeUrl, "client_domain", input.clientDomain);
-    const response = await fetch(challengeUrl, {
-        method: "GET",
-        headers: { Accept: "application/json" },
+    const attempts = [];
+    if (input.clientDomain) {
+        attempts.push({
+            memo: input.memo,
+            homeDomain: input.homeDomain,
+            clientDomain: input.clientDomain,
+        }, { clientDomain: input.clientDomain }, { homeDomain: input.homeDomain, clientDomain: input.clientDomain });
+    }
+    else {
+        attempts.push({
+            memo: input.memo,
+            homeDomain: input.homeDomain,
+        }, { homeDomain: input.homeDomain }, {});
+    }
+    const seen = new Set();
+    const deduped = attempts.filter((attempt) => {
+        const key = JSON.stringify(attempt);
+        if (seen.has(key))
+            return false;
+        seen.add(key);
+        return true;
     });
-    if (!response.ok) {
-        const raw = await response.text();
-        throw new Error(`SEP-10 challenge failed at ${webAuthEndpoint} (${response.status}): ${raw || response.statusText}`);
+    let lastError = "";
+    for (const attempt of deduped) {
+        let challengeUrl = appendQuery(webAuthEndpoint, "account", input.account);
+        challengeUrl = appendQuery(challengeUrl, "memo", attempt.memo);
+        challengeUrl = appendQuery(challengeUrl, "home_domain", attempt.homeDomain);
+        challengeUrl = appendQuery(challengeUrl, "client_domain", attempt.clientDomain);
+        const response = await fetch(challengeUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+            const raw = await response.text();
+            lastError = `SEP-10 challenge failed at ${webAuthEndpoint} (${response.status}): ${raw || response.statusText}`;
+            continue;
+        }
+        const payload = (await response.json());
+        if (!payload.transaction) {
+            lastError = `SEP-10 challenge missing transaction at ${webAuthEndpoint}`;
+            continue;
+        }
+        return {
+            challengeXdr: payload.transaction,
+            networkPassphrase: payload.network_passphrase || getStellarConfig().networkPassphrase,
+        };
     }
-    const payload = (await response.json());
-    if (!payload.transaction) {
-        throw new Error(`SEP-10 challenge missing transaction at ${webAuthEndpoint}`);
-    }
-    return {
-        challengeXdr: payload.transaction,
-        networkPassphrase: payload.network_passphrase || getStellarConfig().networkPassphrase,
-    };
+    throw new Error(lastError || `SEP-10 challenge failed at ${webAuthEndpoint}`);
 }
 async function exchangeSep10Token(input) {
     const webAuthEndpoint = normalizeBaseUrl(input.webAuthEndpoint);
@@ -292,6 +329,13 @@ function findAnchorById(anchors, id) {
     }
     return anchor;
 }
+function isAnchorExecutionReady(anchor) {
+    return Boolean(anchor.capabilities.operational &&
+        anchor.capabilities.sep10 &&
+        anchor.capabilities.sep24 &&
+        anchor.capabilities.webAuthEndpoint &&
+        anchor.capabilities.transferServerSep24);
+}
 function isMoneyGramDomain(domain) {
     const normalized = toHostname(domain);
     return (normalized === "stellar.moneygram.com" ||
@@ -331,7 +375,7 @@ async function prepareAnchorAuth(input) {
         webAuthEndpoint,
         account: input.account,
         memo: moneyGramMemo,
-        homeDomain: executionDomain,
+        homeDomain: shouldSendSep10HomeDomain() ? executionDomain : undefined,
         clientDomain: input.clientDomain,
     });
     return {
@@ -349,6 +393,9 @@ async function prepareAnchorAuth(input) {
     };
 }
 export default async function handler(req, res) {
+    if (handleCorsPreflight(req, res, ["POST", "OPTIONS"]))
+        return;
+    applyCors(req, res, ["POST", "OPTIONS"]);
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Method not allowed" });
     }
@@ -383,12 +430,14 @@ export default async function handler(req, res) {
                     error: "Selected route is not operational. Choose an available route (anchors with valid SEP-10/SEP-24).",
                 });
             }
-            if (!clientDomain) {
+            if (shouldSendSep10ClientDomain() && !clientDomain) {
                 return res.status(400).json({
-                    error: "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env.",
+                    error: "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env or disable SEP10_SEND_CLIENT_DOMAIN.",
                 });
             }
-            if (getPopEnv() === "production" && isLocalDomain(clientDomain)) {
+            if (shouldSendSep10ClientDomain() &&
+                getPopEnv() === "production" &&
+                isLocalDomain(clientDomain)) {
                 return res.status(400).json({
                     error: "Invalid SEP10_CLIENT_DOMAIN for production. Use a public domain, not localhost.",
                 });
@@ -396,6 +445,11 @@ export default async function handler(req, res) {
             const anchors = await listActiveAnchors();
             const originAnchor = findAnchorById(anchors, asString(route.originAnchor?.id));
             const destinationAnchor = findAnchorById(anchors, asString(route.destinationAnchor?.id));
+            if (!isAnchorExecutionReady(originAnchor) || !isAnchorExecutionReady(destinationAnchor)) {
+                return res.status(400).json({
+                    error: "Selected anchors are not execution-ready. They must support SEP-10 and SEP-24 with valid endpoints.",
+                });
+            }
             const transactionId = `POP-${Date.now()}-${Math.random()
                 .toString(36)
                 .slice(2, 8)
@@ -407,7 +461,7 @@ export default async function handler(req, res) {
                     assetCode: asString(route.originCurrency) || originAnchor.currency,
                     amount,
                     account: senderAccount,
-                    clientDomain,
+                    clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
                 }),
                 prepareAnchorAuth({
                     role: "destination",
@@ -415,7 +469,7 @@ export default async function handler(req, res) {
                     assetCode: asString(route.destinationCurrency) || destinationAnchor.currency,
                     amount,
                     account: senderAccount,
-                    clientDomain,
+                    clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
                 }),
             ]);
             const prepared = {
@@ -429,7 +483,7 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 status: "needs_signature",
                 meta: {
-                    clientDomain,
+                    clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
                 },
                 prepared,
             });

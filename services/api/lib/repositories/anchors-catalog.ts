@@ -61,6 +61,86 @@ interface LocalAnchorExportFile {
 
 let localFallbackCache: AnchorCatalogEntry[] | null = null;
 
+const KNOWN_DOMAIN_COUNTRY: Record<string, string> = {
+  "clpx.finance": "CL",
+  "ntokens.com": "BR",
+  "www.ntokens.com": "BR",
+  "mykobo.co": "CO",
+  "finclusive.com": "US",
+};
+
+function normalizeIso2(value: string): string {
+  const code = value.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : "";
+}
+
+function parseDomainCountryOverrides(): Record<string, string> {
+  const raw = process.env.ANCHOR_DOMAIN_COUNTRY_OVERRIDES?.trim() ?? "";
+  if (!raw) return {};
+
+  const out: Record<string, string> = {};
+  for (const pair of raw.split(/[;,]/g)) {
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const [domainRaw, countryRaw] = trimmed.split(/[:=]/g);
+    const domain = (domainRaw ?? "").trim().toLowerCase();
+    const country = normalizeIso2(countryRaw ?? "");
+    if (!domain || !country) continue;
+    out[domain] = country;
+  }
+  return out;
+}
+
+function inferCountryFromDomain(domain: string): string {
+  const normalizedDomain = domain.trim().toLowerCase();
+  if (!normalizedDomain) return "";
+
+  const overrides = parseDomainCountryOverrides();
+  if (overrides[normalizedDomain]) return overrides[normalizedDomain];
+  if (KNOWN_DOMAIN_COUNTRY[normalizedDomain]) return KNOWN_DOMAIN_COUNTRY[normalizedDomain];
+
+  const lastLabel = normalizedDomain.split(".").pop() ?? "";
+  const maybeIso2 = normalizeIso2(lastLabel);
+  if (maybeIso2 && maybeIso2 !== "ZZ") return maybeIso2;
+
+  return "";
+}
+
+function normalizeCatalogCountry(country: string, domain: string): string {
+  const normalized = normalizeIso2(country);
+  if (normalized && normalized !== "ZZ") return normalized;
+  return inferCountryFromDomain(domain) || "ZZ";
+}
+
+function mapCatalogRow(row: AnchorCatalogRow): AnchorCatalogEntry {
+  const country = normalizeCatalogCountry(row.country, row.domain);
+  return {
+    id: row.id,
+    name: row.name,
+    domain: row.domain,
+    country,
+    currency: row.currency,
+    type: row.type,
+    capabilities: {
+      sep24: Boolean(row.sep24),
+      sep6: Boolean(row.sep6),
+      sep31: Boolean(row.sep31),
+      sep10: Boolean(row.sep10),
+      operational: Boolean(row.operational),
+      feeFixed: row.fee_fixed ?? undefined,
+      feePercent: row.fee_percent ?? undefined,
+      feeSource: row.fee_source ?? undefined,
+      transferServerSep24: row.transfer_server_sep24 ?? undefined,
+      transferServerSep6: row.transfer_server_sep6 ?? undefined,
+      webAuthEndpoint: row.web_auth_endpoint ?? undefined,
+      directPaymentServer: row.direct_payment_server ?? undefined,
+      kycServer: row.kyc_server ?? undefined,
+      lastCheckedAt: row.last_checked_at ?? undefined,
+      diagnostics: row.diagnostics ?? undefined,
+    },
+  };
+}
+
 function localFallbackFilePath(): string {
   const candidates = [
     path.join(process.cwd(), "data", "anchors-export.json"),
@@ -97,14 +177,15 @@ function loadLocalFallbackAnchors(): AnchorCatalogEntry[] {
     if (countries.length === 0 || currencies.length === 0) continue;
 
     for (const country of countries) {
-      if (!country) continue;
+      const normalizedCountry = normalizeCatalogCountry(country, domain);
+      if (!normalizedCountry) continue;
       for (const currency of currencies) {
         if (!currency) continue;
         out.push({
-          id: `${domain}:${type}:${country}:${currency}`,
+          id: `${domain}:${type}:${normalizedCountry}:${currency}`,
           name,
           domain,
-          country,
+          country: normalizedCountry,
           currency,
           type,
           capabilities: {
@@ -144,31 +225,7 @@ export async function getAnchorsForCorridor(input: {
     }
 
     const rows = (data ?? []) as AnchorCatalogRow[];
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      domain: row.domain,
-      country: row.country,
-      currency: row.currency,
-      type: row.type,
-      capabilities: {
-        sep24: Boolean(row.sep24),
-        sep6: Boolean(row.sep6),
-        sep31: Boolean(row.sep31),
-        sep10: Boolean(row.sep10),
-        operational: Boolean(row.operational),
-        feeFixed: row.fee_fixed ?? undefined,
-        feePercent: row.fee_percent ?? undefined,
-        feeSource: row.fee_source ?? undefined,
-        transferServerSep24: row.transfer_server_sep24 ?? undefined,
-        transferServerSep6: row.transfer_server_sep6 ?? undefined,
-        webAuthEndpoint: row.web_auth_endpoint ?? undefined,
-        directPaymentServer: row.direct_payment_server ?? undefined,
-        kycServer: row.kyc_server ?? undefined,
-        lastCheckedAt: row.last_checked_at ?? undefined,
-        diagnostics: row.diagnostics ?? undefined,
-      },
-    }));
+    return rows.map(mapCatalogRow);
   } catch {
     const fallback = loadLocalFallbackAnchors();
     return fallback.filter(
@@ -220,31 +277,7 @@ export async function listActiveAnchors(): Promise<AnchorCatalogEntry[]> {
     }
 
     const rows = (data ?? []) as AnchorCatalogRow[];
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      domain: row.domain,
-      country: row.country,
-      currency: row.currency,
-      type: row.type,
-      capabilities: {
-        sep24: Boolean(row.sep24),
-        sep6: Boolean(row.sep6),
-        sep31: Boolean(row.sep31),
-        sep10: Boolean(row.sep10),
-        operational: Boolean(row.operational),
-        feeFixed: row.fee_fixed ?? undefined,
-        feePercent: row.fee_percent ?? undefined,
-        feeSource: row.fee_source ?? undefined,
-        transferServerSep24: row.transfer_server_sep24 ?? undefined,
-        transferServerSep6: row.transfer_server_sep6 ?? undefined,
-        webAuthEndpoint: row.web_auth_endpoint ?? undefined,
-        directPaymentServer: row.direct_payment_server ?? undefined,
-        kycServer: row.kyc_server ?? undefined,
-        lastCheckedAt: row.last_checked_at ?? undefined,
-        diagnostics: row.diagnostics ?? undefined,
-      },
-    }));
+    return rows.map(mapCatalogRow);
   } catch {
     return loadLocalFallbackAnchors();
   }

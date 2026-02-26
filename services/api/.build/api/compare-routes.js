@@ -1,7 +1,11 @@
 import { readJsonBody } from "../lib/http.js";
 import { parseCompareRoutesInput } from "../lib/remittances/compare/schema.js";
 import { compareRoutesWithAnchors } from "../lib/remittances/compare/service.js";
+import { applyCors, handleCorsPreflight } from "../lib/cors.js";
 export default async function handler(req, res) {
+    if (handleCorsPreflight(req, res, ["POST", "OPTIONS"]))
+        return;
+    applyCors(req, res, ["POST", "OPTIONS"]);
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Method not allowed" });
     }

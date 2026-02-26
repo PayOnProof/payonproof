@@ -1,9 +1,13 @@
 import { listActiveAnchors } from "../../lib/repositories/anchors-catalog.js";
+import { applyCors, handleCorsPreflight } from "../../lib/cors.js";
 const countryNames = typeof Intl !== "undefined" &&
     typeof Intl.DisplayNames === "function"
     ? new Intl.DisplayNames(["en"], { type: "region" })
     : null;
 export default async function handler(req, res) {
+    if (handleCorsPreflight(req, res, ["GET", "OPTIONS"]))
+        return;
+    applyCors(req, res, ["GET", "OPTIONS"]);
     if (req.method !== "GET") {
         return res.status(405).json({ error: "Method not allowed" });
     }
