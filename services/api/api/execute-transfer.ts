@@ -91,6 +91,12 @@ type StatusPollResult =
       error: string;
     };
 
+const SEP10_CHALLENGE_CACHE_TTL_MS = 30_000;
+const sep10ChallengeCache = new Map<
+  string,
+  { expiresAt: number; value: { challengeXdr: string; networkPassphrase: string } }
+>();
+
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -298,6 +304,18 @@ async function fetchSep10Challenge(input: {
   memo?: string;
 }): Promise<{ challengeXdr: string; networkPassphrase: string }> {
   const webAuthEndpoint = normalizeBaseUrl(input.webAuthEndpoint);
+  const cacheKey = [
+    webAuthEndpoint,
+    input.account,
+    input.homeDomain ?? "",
+    input.clientDomain ?? "",
+    input.memo ?? "",
+  ].join("|");
+  const cached = sep10ChallengeCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   const attempts: Array<{
     memo?: string;
     homeDomain?: string;
@@ -363,11 +381,16 @@ async function fetchSep10Challenge(input: {
       continue;
     }
 
-    return {
+    const value = {
       challengeXdr: payload.transaction,
       networkPassphrase:
         payload.network_passphrase || getStellarConfig().networkPassphrase,
     };
+    sep10ChallengeCache.set(cacheKey, {
+      expiresAt: Date.now() + SEP10_CHALLENGE_CACHE_TTL_MS,
+      value,
+    });
+    return value;
   }
 
   throw new Error(lastError || `SEP-10 challenge failed at ${webAuthEndpoint}`);
