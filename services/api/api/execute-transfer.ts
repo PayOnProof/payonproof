@@ -607,9 +607,11 @@ async function startSep24Interactive(input: {
         const raw = await response.text();
         lastError = `SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${
           raw || response.statusText
-        }. request={asset_code:${attempt.assetCode}${
-          attempt.assetIssuer ? `,asset_issuer:${attempt.assetIssuer}` : ""
-        },account:${input.account},amount:${input.amount},content_type:${transport.contentType}}`;
+        }. request={asset_code:${requestBody.asset_code}${
+          requestBody.asset_issuer ? `,asset_issuer:${requestBody.asset_issuer}` : ""
+        },account:${requestBody.account},amount:${requestBody.amount}${
+          requestBody.memo ? `,memo:${requestBody.memo}` : ""
+        },content_type:${transport.contentType}}`;
         continue;
       }
 
