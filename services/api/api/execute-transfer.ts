@@ -553,16 +553,6 @@ async function startSep24Interactive(input: {
   let lastError = "";
   for (const attempt of deduped) {
     const callbackParam = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
-    const requestBody: Record<string, string> = {
-      asset_code: attempt.assetCode,
-      account: input.account,
-      amount: String(input.amount),
-    };
-    if (attempt.assetIssuer) requestBody.asset_issuer = attempt.assetIssuer;
-    if (input.memo) requestBody.memo = input.memo;
-    if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
-
-    // MoneyGram SEP-24 expects JSON payloads.
     const isMoneyGramSep24 = /moneygram\.com$/i.test(
       (() => {
         try {
@@ -572,6 +562,23 @@ async function startSep24Interactive(input: {
         }
       })()
     );
+    const requestBody: Record<string, string> = {
+      asset_code: attempt.assetCode,
+      account: input.account,
+      amount: String(input.amount),
+    };
+    if (attempt.assetIssuer) requestBody.asset_issuer = attempt.assetIssuer;
+    if (
+      isMoneyGramSep24 &&
+      requestBody.asset_code.toUpperCase() === "USDC" &&
+      !requestBody.asset_issuer
+    ) {
+      requestBody.asset_issuer = resolveMoneyGramUsdcIssuer();
+    }
+    if (input.memo) requestBody.memo = input.memo;
+    if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
+
+    // MoneyGram SEP-24 expects JSON payloads.
     const transportAttempts: Array<{ contentType: string; body: string }> = [
       {
         contentType: "application/json",
