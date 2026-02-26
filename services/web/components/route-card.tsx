@@ -182,7 +182,7 @@ export function RouteCard({
               <p className="text-3xl font-bold tabular-nums text-foreground lg:text-2xl">
                 {route.receivedAmount.toLocaleString()}
                 <span className="ml-1.5 text-sm font-medium text-muted-foreground">
-                  {destinationCurrency}
+                  {route.destinationCurrency}
                 </span>
               </p>
             </div>
