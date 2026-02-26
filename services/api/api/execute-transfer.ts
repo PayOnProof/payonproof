@@ -298,38 +298,72 @@ async function fetchSep10Challenge(input: {
   memo?: string;
 }): Promise<{ challengeXdr: string; networkPassphrase: string }> {
   const webAuthEndpoint = normalizeBaseUrl(input.webAuthEndpoint);
-  let challengeUrl = appendQuery(webAuthEndpoint, "account", input.account);
-  challengeUrl = appendQuery(challengeUrl, "memo", input.memo);
-  challengeUrl = appendQuery(challengeUrl, "home_domain", input.homeDomain);
-  challengeUrl = appendQuery(challengeUrl, "client_domain", input.clientDomain);
-  const response = await fetch(challengeUrl, {
-    method: "GET",
-    headers: { Accept: "application/json" },
+  const attempts: Array<{
+    memo?: string;
+    homeDomain?: string;
+    clientDomain?: string;
+  }> = [
+    {
+      memo: input.memo,
+      homeDomain: input.homeDomain,
+      clientDomain: input.clientDomain,
+    },
+    {
+      clientDomain: input.clientDomain,
+    },
+    {
+      homeDomain: input.homeDomain,
+      clientDomain: input.clientDomain,
+    },
+    {},
+  ];
+
+  const seen = new Set<string>();
+  const deduped = attempts.filter((attempt) => {
+    const key = JSON.stringify(attempt);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 
-  if (!response.ok) {
-    const raw = await response.text();
-    throw new Error(
-      `SEP-10 challenge failed at ${webAuthEndpoint} (${response.status}): ${
+  let lastError = "";
+  for (const attempt of deduped) {
+    let challengeUrl = appendQuery(webAuthEndpoint, "account", input.account);
+    challengeUrl = appendQuery(challengeUrl, "memo", attempt.memo);
+    challengeUrl = appendQuery(challengeUrl, "home_domain", attempt.homeDomain);
+    challengeUrl = appendQuery(challengeUrl, "client_domain", attempt.clientDomain);
+
+    const response = await fetch(challengeUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      const raw = await response.text();
+      lastError = `SEP-10 challenge failed at ${webAuthEndpoint} (${response.status}): ${
         raw || response.statusText
-      }`
-    );
+      }`;
+      continue;
+    }
+
+    const payload = (await response.json()) as {
+      transaction?: string;
+      network_passphrase?: string;
+    };
+
+    if (!payload.transaction) {
+      lastError = `SEP-10 challenge missing transaction at ${webAuthEndpoint}`;
+      continue;
+    }
+
+    return {
+      challengeXdr: payload.transaction,
+      networkPassphrase:
+        payload.network_passphrase || getStellarConfig().networkPassphrase,
+    };
   }
 
-  const payload = (await response.json()) as {
-    transaction?: string;
-    network_passphrase?: string;
-  };
-
-  if (!payload.transaction) {
-    throw new Error(`SEP-10 challenge missing transaction at ${webAuthEndpoint}`);
-  }
-
-  return {
-    challengeXdr: payload.transaction,
-    networkPassphrase:
-      payload.network_passphrase || getStellarConfig().networkPassphrase,
-  };
+  throw new Error(lastError || `SEP-10 challenge failed at ${webAuthEndpoint}`);
 }
 
 async function exchangeSep10Token(input: {
