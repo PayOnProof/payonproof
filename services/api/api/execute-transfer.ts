@@ -703,8 +703,9 @@ async function prepareAnchorAuth(input: {
     webAuthEndpoint,
     account: input.account,
     memo: moneyGramMemo,
+    // SEP-10 home_domain is the client (wallet) domain, not the anchor domain.
     homeDomain:
-      isMoneyGram || shouldSendSep10HomeDomain() ? executionDomain : undefined,
+      isMoneyGram || shouldSendSep10HomeDomain() ? input.clientDomain : undefined,
     clientDomain: input.clientDomain,
   });
 
