@@ -65,7 +65,6 @@ export function TransactionExecution({
       const signatureByAnchorContext = new Map<string, string>();
       for (const anchor of prepared.anchors) {
         const anchorContextKey = [
-          anchor.anchorId,
           anchor.webAuthEndpoint,
           anchor.account,
           anchor.networkPassphrase,

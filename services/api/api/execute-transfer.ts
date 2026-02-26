@@ -801,7 +801,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         asString(route.originCurrency) || originAnchor.currency;
       const destinationAssetCode =
         asString(route.destinationCurrency) || destinationAnchor.currency;
-      const sameAnchor = originAnchor.id === destinationAnchor.id;
+      const sameAnchor =
+        toHostname(originAnchor.domain) === toHostname(destinationAnchor.domain);
 
       const preparedAnchors = sameAnchor
         ? await (async () => {
