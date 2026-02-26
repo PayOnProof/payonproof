@@ -194,6 +194,27 @@ function isSep24AssetSupported(
   return keys.some((key) => matchesSepAssetKey(key, assetCode));
 }
 
+function extractSep24AssetCodes(
+  sep24Info: unknown,
+  role: "origin" | "destination"
+): string[] {
+  if (!sep24Info || typeof sep24Info !== "object") return [];
+  const root = sep24Info as Record<string, unknown>;
+  const sectionName = role === "origin" ? "deposit" : "withdraw";
+  const section = root[sectionName];
+  if (!section || typeof section !== "object") return [];
+  const keys = Object.keys(section as Record<string, unknown>);
+  const seen = new Set<string>();
+  const codes: string[] = [];
+  for (const key of keys) {
+    const code = key.split(":")[0]?.trim().toUpperCase();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    codes.push(code);
+  }
+  return codes;
+}
+
 function shouldSendSep10ClientDomain(): boolean {
   const raw = (process.env.SEP10_SEND_CLIENT_DOMAIN ?? "").trim().toLowerCase();
   return raw === "true" || raw === "1";
@@ -684,6 +705,7 @@ async function prepareAnchorAuth(input: {
 
   const webAuthEndpoint = asString(resolved.endpoints.webAuthEndpoint);
   const transferServerSep24 = asString(resolved.endpoints.transferServerSep24);
+  let effectiveAssetCode = input.assetCode.trim().toUpperCase();
 
   if (!webAuthEndpoint || !isHttpsUrl(webAuthEndpoint)) {
     throw new Error(`Anchor ${input.anchor.name} has no valid SEP-10 endpoint`);
@@ -691,12 +713,17 @@ async function prepareAnchorAuth(input: {
   if (!transferServerSep24 || !isHttpsUrl(transferServerSep24)) {
     throw new Error(`Anchor ${input.anchor.name} has no valid SEP-24 endpoint`);
   }
-  if (!isSep24AssetSupported(resolved.raw?.sep24Info, input.assetCode, input.role)) {
-    throw new Error(
-      `Anchor ${input.anchor.name} does not support asset_code '${input.assetCode}' for ${
-        input.role === "origin" ? "deposit" : "withdraw"
-      } in SEP-24 /info`
-    );
+  if (!isSep24AssetSupported(resolved.raw?.sep24Info, effectiveAssetCode, input.role)) {
+    const supported = extractSep24AssetCodes(resolved.raw?.sep24Info, input.role);
+    if (supported.length > 0) {
+      effectiveAssetCode = supported[0];
+    } else {
+      throw new Error(
+        `Anchor ${input.anchor.name} does not support asset_code '${input.assetCode}' for ${
+          input.role === "origin" ? "deposit" : "withdraw"
+        } in SEP-24 /info`
+      );
+    }
   }
 
   const challenge = await fetchSep10Challenge({
@@ -714,7 +741,7 @@ async function prepareAnchorAuth(input: {
     anchorId: input.anchor.id,
     anchorName: input.anchor.name,
     domain: executionDomain,
-    assetCode: input.assetCode,
+    assetCode: effectiveAssetCode,
     amount: input.amount,
     account: input.account,
     webAuthEndpoint,
