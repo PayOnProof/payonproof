@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { Keypair, TransactionBuilder } from "@stellar/stellar-sdk";
 import { readJsonBody } from "../lib/http.js";
 import { listActiveAnchors } from "../lib/repositories/anchors-catalog.js";
 import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events.js";
@@ -177,6 +178,15 @@ function shouldSendSep10ClientDomain(): boolean {
 function shouldSendSep10HomeDomain(): boolean {
   const raw = (process.env.SEP10_SEND_HOME_DOMAIN ?? "").trim().toLowerCase();
   return raw === "true" || raw === "1";
+}
+
+function shouldRequireClientDomainSignature(): boolean {
+  const raw = (process.env.SEP10_REQUIRE_CLIENT_SIGNATURE ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "1";
+}
+
+function getClientDomainSigningSecret(): string {
+  return process.env.SEP10_CLIENT_DOMAIN_SIGNING_SECRET?.trim() ?? "";
 }
 
 function getCallbackSecret(): string {
@@ -594,6 +604,34 @@ function isMoneyGramUserIdRequired(): boolean {
   return raw === "true" || raw === "1";
 }
 
+function shouldSignClientDomainForAnchor(domain: string): boolean {
+  return isMoneyGramDomain(domain) || shouldRequireClientDomainSignature();
+}
+
+function signClientDomainChallenge(input: {
+  transactionXdr: string;
+  networkPassphrase: string;
+  anchorDomain: string;
+}): string {
+  if (!shouldSignClientDomainForAnchor(input.anchorDomain)) {
+    return input.transactionXdr;
+  }
+
+  const signingSecret = getClientDomainSigningSecret();
+  if (!signingSecret) {
+    throw new Error(
+      "SEP10 client-domain signature required. Set SEP10_CLIENT_DOMAIN_SIGNING_SECRET in API env."
+    );
+  }
+
+  const tx = TransactionBuilder.fromXDR(
+    input.transactionXdr,
+    input.networkPassphrase
+  );
+  tx.sign(Keypair.fromSecret(signingSecret));
+  return tx.toXDR();
+}
+
 async function prepareAnchorAuth(input: {
   role: "origin" | "destination";
   anchor: AnchorCatalogEntry;
@@ -734,6 +772,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({
           error:
             "Invalid SEP10_CLIENT_DOMAIN for production. Use a public domain, not localhost.",
+        });
+      }
+      if (
+        mustSendClientDomain &&
+        (shouldSignClientDomainForAnchor(originAnchor.domain) ||
+          shouldSignClientDomainForAnchor(destinationAnchor.domain)) &&
+        !getClientDomainSigningSecret()
+      ) {
+        return res.status(400).json({
+          error:
+            "Missing SEP10_CLIENT_DOMAIN_SIGNING_SECRET. Required for client_domain authentication with selected anchor(s).",
         });
       }
       if (!isAnchorExecutionReady(originAnchor) || !isAnchorExecutionReady(destinationAnchor)) {
@@ -912,10 +961,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!signedChallengeXdr) {
         return res.status(400).json({ error: `Missing signature for role '${anchor.role}'` });
       }
+      const signedWithClientDomain = signClientDomainChallenge({
+        transactionXdr: signedChallengeXdr,
+        networkPassphrase: anchor.networkPassphrase,
+        anchorDomain: anchor.domain,
+      });
 
       const token = await exchangeSep10Token({
         webAuthEndpoint: anchor.webAuthEndpoint,
-        signedChallengeXdr,
+        signedChallengeXdr: signedWithClientDomain,
       });
 
       const operation = anchor.role === "origin" ? "deposit" : "withdraw";
