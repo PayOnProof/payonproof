@@ -194,9 +194,12 @@ function SendPageContent() {
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">
-                    {amount.toLocaleString()} {originCountry?.currencies?.[0] ?? "USD"}
+                    {amount.toLocaleString()}
                   </span>{" "}
                   from {originCountry?.name} to {destCountry?.name}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Asset can vary by route (see each row).
                 </p>
                 {searchError && (
                   <p className="mt-2 text-xs font-medium text-destructive">
@@ -321,7 +324,7 @@ function SendPageContent() {
                             {route.feePercentage}%
                           </span>
                           <span className="ml-1 text-xs text-muted-foreground">
-                            ({route.feeAmount.toFixed(1)})
+                            ({route.feeAmount.toFixed(1)} {route.originCurrency})
                           </span>
                         </td>
                         <td className="px-4 py-3 font-medium text-foreground">
@@ -335,7 +338,7 @@ function SendPageContent() {
                             {route.receivedAmount.toLocaleString()}
                           </span>
                           <span className="ml-1 text-xs text-muted-foreground">
-                            {destCountry?.currencies?.[0] ?? "USD"}
+                            {route.destinationCurrency}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -382,8 +385,6 @@ function SendPageContent() {
                     key={route.id}
                     route={route}
                     onSelect={handleSelectRoute}
-                    originCurrency={originCountry?.currencies?.[0] || "USD"}
-                    destinationCurrency={destCountry?.currencies?.[0] || "USD"}
                     index={i}
                   />
                 ))}

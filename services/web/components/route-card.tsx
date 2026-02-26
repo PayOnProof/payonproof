@@ -26,8 +26,6 @@ import { cn } from "@/lib/utils";
 interface RouteCardProps {
   route: RemittanceRoute;
   onSelect: (route: RemittanceRoute) => void;
-  originCurrency: string;
-  destinationCurrency: string;
   index?: number;
 }
 
@@ -52,8 +50,6 @@ const STATUS_CONFIG = {
 export function RouteCard({
   route,
   onSelect,
-  originCurrency,
-  destinationCurrency,
   index = 0,
 }: RouteCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -158,13 +154,13 @@ export function RouteCard({
                 icon={<Activity className="h-3.5 w-3.5" />}
                 label="Fee"
                 value={`${route.feePercentage}%`}
-                sublabel={`${route.feeAmount.toFixed(2)} ${originCurrency}`}
+                sublabel={`${route.feeAmount.toFixed(2)} ${route.originCurrency}`}
               />
               <MetricPill
                 icon={<TrendingUp className="h-3.5 w-3.5" />}
                 label="Rate"
                 value={`${route.exchangeRate}`}
-                sublabel={`${originCurrency}/${destinationCurrency}`}
+                sublabel={`${route.originCurrency}/${route.destinationCurrency}`}
               />
               {route.escrow && (
                 <div className="flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5">
@@ -268,7 +264,7 @@ export function RouteCard({
                         {route.feePercentage}%
                       </span>
                       <span className="ml-2 text-xs text-muted-foreground">
-                        ({route.feeAmount.toFixed(2)} {originCurrency})
+                        ({route.feeAmount.toFixed(2)} {route.originCurrency})
                       </span>
                     </div>
                   </div>
