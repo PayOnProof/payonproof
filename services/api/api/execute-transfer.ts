@@ -736,11 +736,25 @@ function signClientDomainChallenge(input: {
     );
   }
 
+  if (!/^S[A-Z2-7]{55}$/.test(signingSecret)) {
+    throw new Error(
+      "Invalid SEP10_CLIENT_DOMAIN_SIGNING_SECRET format. It must be a Stellar secret seed starting with 'S' (not a public key 'G' and not hex/base64)."
+    );
+  }
+
   const tx = TransactionBuilder.fromXDR(
     input.transactionXdr,
     input.networkPassphrase
   );
-  tx.sign(Keypair.fromSecret(signingSecret));
+  let keypair: Keypair;
+  try {
+    keypair = Keypair.fromSecret(signingSecret);
+  } catch {
+    throw new Error(
+      "Invalid SEP10_CLIENT_DOMAIN_SIGNING_SECRET value. Use the wallet-domain signing secret that matches SIGNING_KEY in /.well-known/stellar.toml."
+    );
+  }
+  tx.sign(keypair);
   return tx.toXDR();
 }
 
