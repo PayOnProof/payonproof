@@ -986,6 +986,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { id?: string; url: string; type?: string; anchorName: string }
     > = {};
     const statusHandles: Sep24StatusHandle[] = [];
+    const sep10TokenByChallenge = new Map<string, string>();
     const callbackToken = randomBytes(18).toString("hex");
     const callbackUrl = buildCallbackUrl(req, prepared.transactionId, callbackToken);
 
@@ -1000,10 +1001,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         anchorDomain: anchor.domain,
       });
 
-      const token = await exchangeSep10Token({
-        webAuthEndpoint: anchor.webAuthEndpoint,
-        signedChallengeXdr: signedWithClientDomain,
-      });
+      const tokenCacheKey = `${anchor.webAuthEndpoint}|${signedWithClientDomain}`;
+      let token = sep10TokenByChallenge.get(tokenCacheKey);
+      if (!token) {
+        token = await exchangeSep10Token({
+          webAuthEndpoint: anchor.webAuthEndpoint,
+          signedChallengeXdr: signedWithClientDomain,
+        });
+        sep10TokenByChallenge.set(tokenCacheKey, token);
+      }
 
       const operation = anchor.role === "origin" ? "deposit" : "withdraw";
       const interactive = await startSep24Interactive({
