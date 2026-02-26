@@ -42,6 +42,7 @@ interface PreparedAnchorAuth {
   anchorName: string;
   domain: string;
   assetCode: string;
+  assetIssuer?: string;
   amount: number;
   account: string;
   webAuthEndpoint: string;
@@ -194,25 +195,34 @@ function isSep24AssetSupported(
   return keys.some((key) => matchesSepAssetKey(key, assetCode));
 }
 
-function extractSep24AssetCodes(
+function parseSep24AssetKey(key: string): { assetCode: string; assetIssuer?: string } | null {
+  const [codeRaw, issuerRaw] = key.split(":");
+  const assetCode = codeRaw?.trim().toUpperCase();
+  if (!assetCode) return null;
+  const assetIssuer = issuerRaw?.trim() || undefined;
+  return { assetCode, assetIssuer };
+}
+
+function resolveSep24AssetSelection(
   sep24Info: unknown,
+  requestedAssetCode: string,
   role: "origin" | "destination"
-): string[] {
-  if (!sep24Info || typeof sep24Info !== "object") return [];
+): { assetCode: string; assetIssuer?: string } | null {
+  if (!sep24Info || typeof sep24Info !== "object") return null;
   const root = sep24Info as Record<string, unknown>;
   const sectionName = role === "origin" ? "deposit" : "withdraw";
   const section = root[sectionName];
-  if (!section || typeof section !== "object") return [];
+  if (!section || typeof section !== "object") return null;
   const keys = Object.keys(section as Record<string, unknown>);
-  const seen = new Set<string>();
-  const codes: string[] = [];
+  if (keys.length === 0) return null;
+  const normalizedRequested = requestedAssetCode.trim().toUpperCase();
+  const matched = keys.find((key) => matchesSepAssetKey(key, normalizedRequested));
+  if (matched) return parseSep24AssetKey(matched);
   for (const key of keys) {
-    const code = key.split(":")[0]?.trim().toUpperCase();
-    if (!code || seen.has(code)) continue;
-    seen.add(code);
-    codes.push(code);
+    const parsed = parseSep24AssetKey(key);
+    if (parsed) return parsed;
   }
-  return codes;
+  return null;
 }
 
 function shouldSendSep10ClientDomain(): boolean {
@@ -487,6 +497,7 @@ async function startSep24Interactive(input: {
   token: string;
   operation: "deposit" | "withdraw";
   assetCode: string;
+  assetIssuer?: string;
   account: string;
   amount: number;
   memo?: string;
@@ -496,6 +507,9 @@ async function startSep24Interactive(input: {
   const endpoint = `${transferServer}/transactions/${input.operation}/interactive`;
   const body = new URLSearchParams();
   body.set("asset_code", input.assetCode);
+  if (input.assetIssuer) {
+    body.set("asset_issuer", input.assetIssuer);
+  }
   body.set("account", input.account);
   body.set("amount", String(input.amount));
   if (input.memo) body.set("memo", input.memo);
@@ -706,6 +720,15 @@ async function prepareAnchorAuth(input: {
   const webAuthEndpoint = asString(resolved.endpoints.webAuthEndpoint);
   const transferServerSep24 = asString(resolved.endpoints.transferServerSep24);
   let effectiveAssetCode = input.assetCode.trim().toUpperCase();
+  let effectiveAssetIssuer: string | undefined;
+  const selectedAsset = resolveSep24AssetSelection(
+    resolved.raw?.sep24Info,
+    effectiveAssetCode,
+    input.role
+  );
+  if (selectedAsset && selectedAsset.assetCode === effectiveAssetCode) {
+    effectiveAssetIssuer = selectedAsset.assetIssuer;
+  }
 
   if (!webAuthEndpoint || !isHttpsUrl(webAuthEndpoint)) {
     throw new Error(`Anchor ${input.anchor.name} has no valid SEP-10 endpoint`);
@@ -714,9 +737,9 @@ async function prepareAnchorAuth(input: {
     throw new Error(`Anchor ${input.anchor.name} has no valid SEP-24 endpoint`);
   }
   if (!isSep24AssetSupported(resolved.raw?.sep24Info, effectiveAssetCode, input.role)) {
-    const supported = extractSep24AssetCodes(resolved.raw?.sep24Info, input.role);
-    if (supported.length > 0) {
-      effectiveAssetCode = supported[0];
+    if (selectedAsset) {
+      effectiveAssetCode = selectedAsset.assetCode;
+      effectiveAssetIssuer = selectedAsset.assetIssuer;
     } else {
       throw new Error(
         `Anchor ${input.anchor.name} does not support asset_code '${input.assetCode}' for ${
@@ -742,6 +765,7 @@ async function prepareAnchorAuth(input: {
     anchorName: input.anchor.name,
     domain: executionDomain,
     assetCode: effectiveAssetCode,
+    assetIssuer: effectiveAssetIssuer,
     amount: input.amount,
     account: input.account,
     webAuthEndpoint,
@@ -860,52 +884,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         asString(route.originCurrency) || originAnchor.currency;
       const destinationAssetCode =
         asString(route.destinationCurrency) || destinationAnchor.currency;
-      const sameAnchor =
-        toHostname(originAnchor.domain) === toHostname(destinationAnchor.domain);
-
-      const preparedAnchors = sameAnchor
-        ? await (async () => {
-            const shared = await prepareAnchorAuth({
-              role: "origin",
-              anchor: originAnchor,
-              assetCode: originAssetCode,
-              amount,
-              account: senderAccount,
-              clientDomain: mustSendClientDomain
-                ? clientDomain
-                : undefined,
-            });
-            return [
-              clonePreparedAnchorWithRole(shared, "origin", originAssetCode),
-              clonePreparedAnchorWithRole(
-                shared,
-                "destination",
-                destinationAssetCode
-              ),
-            ];
-          })()
-        : await Promise.all([
-            prepareAnchorAuth({
-              role: "origin",
-              anchor: originAnchor,
-              assetCode: originAssetCode,
-              amount,
-              account: senderAccount,
-              clientDomain: mustSendClientDomain
-                ? clientDomain
-                : undefined,
-            }),
-            prepareAnchorAuth({
-              role: "destination",
-              anchor: destinationAnchor,
-              assetCode: destinationAssetCode,
-              amount,
-              account: senderAccount,
-              clientDomain: mustSendClientDomain
-                ? clientDomain
-                : undefined,
-            }),
-          ]);
+      const preparedAnchors = await Promise.all([
+        prepareAnchorAuth({
+          role: "origin",
+          anchor: originAnchor,
+          assetCode: originAssetCode,
+          amount,
+          account: senderAccount,
+          clientDomain: mustSendClientDomain
+            ? clientDomain
+            : undefined,
+        }),
+        prepareAnchorAuth({
+          role: "destination",
+          anchor: destinationAnchor,
+          assetCode: destinationAssetCode,
+          amount,
+          account: senderAccount,
+          clientDomain: mustSendClientDomain
+            ? clientDomain
+            : undefined,
+        }),
+      ]);
 
       const prepared: PreparedTransferPayload = {
         transactionId,
@@ -1044,6 +1044,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         token,
         operation,
         assetCode: anchor.assetCode,
+        assetIssuer: anchor.assetIssuer,
         account: anchor.account,
         amount: anchor.amount,
         memo: prepared.transactionId,
