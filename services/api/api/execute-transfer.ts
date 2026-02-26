@@ -302,21 +302,28 @@ async function fetchSep10Challenge(input: {
     memo?: string;
     homeDomain?: string;
     clientDomain?: string;
-  }> = [
-    {
-      memo: input.memo,
-      homeDomain: input.homeDomain,
-      clientDomain: input.clientDomain,
-    },
-    {
-      clientDomain: input.clientDomain,
-    },
-    {
-      homeDomain: input.homeDomain,
-      clientDomain: input.clientDomain,
-    },
-    {},
-  ];
+  }> = [];
+
+  if (input.clientDomain) {
+    attempts.push(
+      {
+        memo: input.memo,
+        homeDomain: input.homeDomain,
+        clientDomain: input.clientDomain,
+      },
+      { clientDomain: input.clientDomain },
+      { homeDomain: input.homeDomain, clientDomain: input.clientDomain }
+    );
+  } else {
+    attempts.push(
+      {
+        memo: input.memo,
+        homeDomain: input.homeDomain,
+      },
+      { homeDomain: input.homeDomain },
+      {}
+    );
+  }
 
   const seen = new Set<string>();
   const deduped = attempts.filter((attempt) => {
