@@ -230,13 +230,22 @@ function resolveSep24AssetSelection(
     const enabled = (row as Record<string, unknown>).enabled;
     return enabled !== false;
   };
+  const enabledKeys = keys.filter((key) => isEnabled(key));
+  const firstEnabledWithIssuer = enabledKeys.find((key) => key.includes(":"));
 
   const matched = keys.find(
     (key) => matchesSepAssetKey(key, normalizedRequested) && isEnabled(key)
   );
-  if (matched) return parseSep24AssetKey(matched);
+  if (matched) {
+    const parsedMatched = parseSep24AssetKey(matched);
+    // If requested matched only a fiat-like code without issuer, prefer a canonical issued asset.
+    if (parsedMatched && !parsedMatched.assetIssuer && firstEnabledWithIssuer) {
+      return parseSep24AssetKey(firstEnabledWithIssuer);
+    }
+    return parsedMatched;
+  }
 
-  const fallbackEnabled = keys.find((key) => isEnabled(key));
+  const fallbackEnabled = enabledKeys[0];
   if (fallbackEnabled) return parseSep24AssetKey(fallbackEnabled);
 
   for (const key of keys) {
