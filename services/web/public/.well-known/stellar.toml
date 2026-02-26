@@ -1,0 +1,14 @@
+# SEP-1 stellar.toml for POP wallet domain
+# Replace placeholder values before production onboarding.
+
+VERSION="2.0.0"
+NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
+
+# Wallet domain signing key used for SEP-10 client_domain attribution.
+SIGNING_KEY="G_REPLACE_WITH_WALLET_DOMAIN_SIGNING_PUBLIC_KEY"
+
+# Optional informational fields
+ORG_NAME="PayOnProof"
+ORG_URL="https://payonproof.vercel.app"
+ORG_DESCRIPTION="Multi-anchor routing for cross-border SME payments on Stellar."
+
