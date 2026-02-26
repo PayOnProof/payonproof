@@ -170,6 +170,30 @@ function resolveClientDomain(req: VercelRequest): string {
   return "";
 }
 
+function matchesSepAssetKey(key: string, assetCode: string): boolean {
+  const normalizedKey = key.trim().toUpperCase();
+  const normalizedAsset = assetCode.trim().toUpperCase();
+  return (
+    normalizedKey === normalizedAsset ||
+    normalizedKey.startsWith(`${normalizedAsset}:`)
+  );
+}
+
+function isSep24AssetSupported(
+  sep24Info: unknown,
+  assetCode: string,
+  role: "origin" | "destination"
+): boolean {
+  if (!sep24Info || typeof sep24Info !== "object") return true;
+  const root = sep24Info as Record<string, unknown>;
+  const sectionName = role === "origin" ? "deposit" : "withdraw";
+  const section = root[sectionName];
+  if (!section || typeof section !== "object") return true;
+  const keys = Object.keys(section as Record<string, unknown>);
+  if (keys.length === 0) return true;
+  return keys.some((key) => matchesSepAssetKey(key, assetCode));
+}
+
 function shouldSendSep10ClientDomain(): boolean {
   const raw = (process.env.SEP10_SEND_CLIENT_DOMAIN ?? "").trim().toLowerCase();
   return raw === "true" || raw === "1";
@@ -666,6 +690,13 @@ async function prepareAnchorAuth(input: {
   }
   if (!transferServerSep24 || !isHttpsUrl(transferServerSep24)) {
     throw new Error(`Anchor ${input.anchor.name} has no valid SEP-24 endpoint`);
+  }
+  if (!isSep24AssetSupported(resolved.raw?.sep24Info, input.assetCode, input.role)) {
+    throw new Error(
+      `Anchor ${input.anchor.name} does not support asset_code '${input.assetCode}' for ${
+        input.role === "origin" ? "deposit" : "withdraw"
+      } in SEP-24 /info`
+    );
   }
 
   const challenge = await fetchSep10Challenge({
