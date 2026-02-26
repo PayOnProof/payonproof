@@ -38,7 +38,6 @@ export function RemittanceForm({ countries, onSearch, loading }: RemittanceFormP
     }
   }, [countries, origin, destination, defaultOrigin, defaultDestination]);
 
-  const originCountry = countries.find((c) => c.code === origin);
   const parsedAmount = Number.parseFloat(amount) || 0;
   const isValid =
     parsedAmount > 0 &&
@@ -151,14 +150,14 @@ export function RemittanceForm({ countries, onSearch, loading }: RemittanceFormP
               )}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-              {originCountry?.currencies?.[0] || "USD"}
+              Varies
             </span>
           </div>
           {parsedAmount > 0 && (
             <p className="text-right text-xs text-muted-foreground">
               {"You'll compare routes for "}
               <span className="font-medium text-foreground">
-                {parsedAmount.toLocaleString()} {originCountry?.currencies?.[0] ?? "USD"}
+                {parsedAmount.toLocaleString()} (asset resolved per route)
               </span>
             </p>
           )}
