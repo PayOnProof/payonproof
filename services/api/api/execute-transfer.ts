@@ -575,7 +575,8 @@ async function startSep24Interactive(input: {
     ) {
       requestBody.asset_issuer = resolveMoneyGramUsdcIssuer();
     }
-    if (input.memo) requestBody.memo = input.memo;
+    // MoneyGram SEP-24 can reject non-numeric/custom memo values on interactive init.
+    if (input.memo && !isMoneyGramSep24) requestBody.memo = input.memo;
     if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
 
     // MoneyGram SEP-24 expects JSON payloads.
