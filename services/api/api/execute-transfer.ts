@@ -31,6 +31,7 @@ interface RoutePayload {
   destinationAnchor: { id: string; name?: string };
   originCurrency: string;
   destinationCurrency: string;
+  available?: boolean;
 }
 
 interface PreparedAnchorAuth {
@@ -481,6 +482,16 @@ function findAnchorById(anchors: AnchorCatalogEntry[], id: string): AnchorCatalo
   return anchor;
 }
 
+function isAnchorExecutionReady(anchor: AnchorCatalogEntry): boolean {
+  return Boolean(
+    anchor.capabilities.operational &&
+      anchor.capabilities.sep10 &&
+      anchor.capabilities.sep24 &&
+      anchor.capabilities.webAuthEndpoint &&
+      anchor.capabilities.transferServerSep24
+  );
+}
+
 function isMoneyGramDomain(domain: string): boolean {
   const normalized = toHostname(domain);
   return (
@@ -573,6 +584,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const senderAccount = asString(parsed.value.senderAccount);
       const amount = asNumber(parsed.value.amount);
       const clientDomain = resolveClientDomain(req);
+      const routeAvailable = Boolean(route?.available);
 
       if (!route || !route.id) {
         return res.status(400).json({ error: "Missing field: route" });
@@ -582,6 +594,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (!Number.isFinite(amount) || amount <= 0) {
         return res.status(400).json({ error: "Invalid field: amount" });
+      }
+      if (!routeAvailable) {
+        return res.status(400).json({
+          error:
+            "Selected route is not operational. Choose an available route (anchors with valid SEP-10/SEP-24).",
+        });
       }
       if (!clientDomain) {
         return res.status(400).json({
@@ -602,6 +620,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         anchors,
         asString(route.destinationAnchor?.id)
       );
+      if (!isAnchorExecutionReady(originAnchor) || !isAnchorExecutionReady(destinationAnchor)) {
+        return res.status(400).json({
+          error:
+            "Selected anchors are not execution-ready. They must support SEP-10 and SEP-24 with valid endpoints.",
+        });
+      }
 
       const transactionId = `POP-${Date.now()}-${Math.random()
         .toString(36)

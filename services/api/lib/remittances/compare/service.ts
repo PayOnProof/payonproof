@@ -15,6 +15,7 @@ import type {
 const BRIDGE_FEE_PERCENT = 0.2;
 const CAPABILITY_REFRESH_MS = 10 * 60 * 1000;
 const FALLBACK_FEE_PERCENT = Number(process.env.ANCHOR_FALLBACK_FEE_PERCENT ?? 1.5);
+const MAX_ROUTES = Math.max(1, Math.min(12, Number(process.env.MAX_COMPARE_ROUTES ?? 12)));
 
 function resolveFeePercentForAmount(
   fee: AnchorRuntime["fees"],
@@ -83,7 +84,13 @@ async function resolveAnchorRuntime(anchor: AnchorCatalogEntry): Promise<AnchorR
       domain: anchor.domain,
       assetCode: anchor.currency,
     });
-    const operational = resolved.sep.sep24 || resolved.sep.sep6 || resolved.sep.sep31;
+    // Production remittance flow requires SEP-10 auth + SEP-24 interactive flow.
+    const operational = Boolean(
+      resolved.sep.sep10 &&
+        resolved.sep.sep24 &&
+        resolved.endpoints.webAuthEndpoint &&
+        resolved.endpoints.transferServerSep24
+    );
 
     const runtime: AnchorRuntime = {
       catalog: anchor,
@@ -254,10 +261,16 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
 
   const runtimes = await Promise.all(anchors.map(resolveAnchorRuntime));
   const originAnchors = runtimes.filter(
-    (r) => r.catalog.type === "on-ramp" && r.catalog.country === input.origin
+    (r) =>
+      r.catalog.type === "on-ramp" &&
+      r.catalog.country === input.origin &&
+      r.operational
   );
   const destinationAnchors = runtimes.filter(
-    (r) => r.catalog.type === "off-ramp" && r.catalog.country === input.destination
+    (r) =>
+      r.catalog.type === "off-ramp" &&
+      r.catalog.country === input.destination &&
+      r.operational
   );
 
   let exchangeRate: number | undefined;
@@ -279,7 +292,7 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
     }
   }
 
-  const scored = scoreRoutes(routes);
+  const scored = scoreRoutes(routes).slice(0, MAX_ROUTES);
 
   return {
     routes: scored,

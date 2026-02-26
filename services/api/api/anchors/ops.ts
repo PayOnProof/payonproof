@@ -319,7 +319,12 @@ async function refreshCapabilities(input: {
         sep6: resolved.sep.sep6,
         sep31: resolved.sep.sep31,
         sep10: resolved.sep.sep10,
-        operational: resolved.sep.sep24 || resolved.sep.sep6 || resolved.sep.sep31,
+        operational: Boolean(
+          resolved.sep.sep10 &&
+            resolved.sep.sep24 &&
+            resolved.endpoints.webAuthEndpoint &&
+            resolved.endpoints.transferServerSep24
+        ),
         feeFixed: resolved.fees.fixed,
         feePercent: resolved.fees.percent,
         feeSource: resolved.fees.source,

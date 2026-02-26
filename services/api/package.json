@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types local-server.ts",
+    "dev": "npm run build:local && node .build/local-server.js",
+    "dev:ts": "node --experimental-strip-types local-server.ts",
     "dev:vercel": "vercel dev --yes --listen 3001 --local-config vercel.json",
+    "build:local": "tsc -p tsconfig.json --outDir .build --rootDir . --allowImportingTsExtensions false",
     "build": "echo \"Vercel builds serverless functions automatically\"",
     "typecheck": "tsc --noEmit",
     "anchors:import:file": "node scripts/import-anchor-file.mjs",

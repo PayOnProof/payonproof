@@ -1,6 +1,8 @@
 import { getSupabaseAdmin } from "../supabase.js";
 import type { AnchorCatalogEntry } from "../remittances/compare/types.js";
 import type { AnchorCatalogImportRow } from "../stellar/anchor-directory.js";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 interface AnchorCatalogRow {
   id: string;
@@ -46,51 +48,134 @@ interface CapabilityUpdateInput {
   lastCheckedAt: string;
 }
 
+interface LocalAnchorExportFile {
+  anchors?: Array<{
+    name?: string;
+    domain?: string;
+    countries?: string[];
+    currencies?: string[];
+    type?: "on-ramp" | "off-ramp";
+    active?: boolean;
+  }>;
+}
+
+let localFallbackCache: AnchorCatalogEntry[] | null = null;
+
+function localFallbackFilePath(): string {
+  const candidates = [
+    path.join(process.cwd(), "data", "anchors-export.json"),
+    path.join(process.cwd(), "services", "api", "data", "anchors-export.json"),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return candidates[0];
+}
+
+function loadLocalFallbackAnchors(): AnchorCatalogEntry[] {
+  if (localFallbackCache) return localFallbackCache;
+
+  const filePath = localFallbackFilePath();
+  if (!existsSync(filePath)) {
+    localFallbackCache = [];
+    return localFallbackCache;
+  }
+
+  const raw = readFileSync(filePath, "utf-8");
+  const parsed = JSON.parse(raw) as LocalAnchorExportFile;
+  const out: AnchorCatalogEntry[] = [];
+
+  for (const row of parsed.anchors ?? []) {
+    const domain = (row.domain ?? "").trim().toLowerCase();
+    const name = (row.name ?? "").trim();
+    const type = row.type;
+    const active = row.active !== false;
+    const countries = (row.countries ?? []).map((c) => (c ?? "").trim().toUpperCase());
+    const currencies = (row.currencies ?? []).map((c) => (c ?? "").trim().toUpperCase());
+
+    if (!domain || !name || !type || !active) continue;
+    if (countries.length === 0 || currencies.length === 0) continue;
+
+    for (const country of countries) {
+      if (!country) continue;
+      for (const currency of currencies) {
+        if (!currency) continue;
+        out.push({
+          id: `${domain}:${type}:${country}:${currency}`,
+          name,
+          domain,
+          country,
+          currency,
+          type,
+          capabilities: {
+            sep24: false,
+            sep6: false,
+            sep31: false,
+            sep10: false,
+            operational: false,
+          },
+        });
+      }
+    }
+  }
+
+  localFallbackCache = out;
+  return localFallbackCache;
+}
+
 export async function getAnchorsForCorridor(input: {
   origin: string;
   destination: string;
 }): Promise<AnchorCatalogEntry[]> {
-  const supabase = getSupabaseAdmin();
+  try {
+    const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("anchors_catalog")
-    .select(
-      "id,name,domain,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
-    )
-    .eq("active", true)
-    .in("country", [input.origin, input.destination])
-    .in("type", ["on-ramp", "off-ramp"]);
+    const { data, error } = await supabase
+      .from("anchors_catalog")
+      .select(
+        "id,name,domain,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
+      )
+      .eq("active", true)
+      .in("country", [input.origin, input.destination])
+      .in("type", ["on-ramp", "off-ramp"]);
 
-  if (error) {
-    throw new Error(`anchors_catalog query failed: ${error.message}`);
+    if (error) {
+      throw new Error(`anchors_catalog query failed: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as AnchorCatalogRow[];
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      country: row.country,
+      currency: row.currency,
+      type: row.type,
+      capabilities: {
+        sep24: Boolean(row.sep24),
+        sep6: Boolean(row.sep6),
+        sep31: Boolean(row.sep31),
+        sep10: Boolean(row.sep10),
+        operational: Boolean(row.operational),
+        feeFixed: row.fee_fixed ?? undefined,
+        feePercent: row.fee_percent ?? undefined,
+        feeSource: row.fee_source ?? undefined,
+        transferServerSep24: row.transfer_server_sep24 ?? undefined,
+        transferServerSep6: row.transfer_server_sep6 ?? undefined,
+        webAuthEndpoint: row.web_auth_endpoint ?? undefined,
+        directPaymentServer: row.direct_payment_server ?? undefined,
+        kycServer: row.kyc_server ?? undefined,
+        lastCheckedAt: row.last_checked_at ?? undefined,
+        diagnostics: row.diagnostics ?? undefined,
+      },
+    }));
+  } catch {
+    const fallback = loadLocalFallbackAnchors();
+    return fallback.filter(
+      (anchor) =>
+        anchor.country === input.origin || anchor.country === input.destination
+    );
   }
-
-  const rows = (data ?? []) as AnchorCatalogRow[];
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    domain: row.domain,
-    country: row.country,
-    currency: row.currency,
-    type: row.type,
-    capabilities: {
-      sep24: Boolean(row.sep24),
-      sep6: Boolean(row.sep6),
-      sep31: Boolean(row.sep31),
-      sep10: Boolean(row.sep10),
-      operational: Boolean(row.operational),
-      feeFixed: row.fee_fixed ?? undefined,
-      feePercent: row.fee_percent ?? undefined,
-      feeSource: row.fee_source ?? undefined,
-      transferServerSep24: row.transfer_server_sep24 ?? undefined,
-      transferServerSep6: row.transfer_server_sep6 ?? undefined,
-      webAuthEndpoint: row.web_auth_endpoint ?? undefined,
-      directPaymentServer: row.direct_payment_server ?? undefined,
-      kycServer: row.kyc_server ?? undefined,
-      lastCheckedAt: row.last_checked_at ?? undefined,
-      diagnostics: row.diagnostics ?? undefined,
-    },
-  }));
 }
 
 export async function upsertAnchorsCatalog(
@@ -119,46 +204,50 @@ export async function upsertAnchorsCatalog(
 }
 
 export async function listActiveAnchors(): Promise<AnchorCatalogEntry[]> {
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("anchors_catalog")
-    .select(
-      "id,name,domain,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
-    )
-    .eq("active", true)
-    .order("country", { ascending: true })
-    .order("name", { ascending: true });
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("anchors_catalog")
+      .select(
+        "id,name,domain,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
+      )
+      .eq("active", true)
+      .order("country", { ascending: true })
+      .order("name", { ascending: true });
 
-  if (error) {
-    throw new Error(`anchors_catalog list failed: ${error.message}`);
+    if (error) {
+      throw new Error(`anchors_catalog list failed: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as AnchorCatalogRow[];
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      country: row.country,
+      currency: row.currency,
+      type: row.type,
+      capabilities: {
+        sep24: Boolean(row.sep24),
+        sep6: Boolean(row.sep6),
+        sep31: Boolean(row.sep31),
+        sep10: Boolean(row.sep10),
+        operational: Boolean(row.operational),
+        feeFixed: row.fee_fixed ?? undefined,
+        feePercent: row.fee_percent ?? undefined,
+        feeSource: row.fee_source ?? undefined,
+        transferServerSep24: row.transfer_server_sep24 ?? undefined,
+        transferServerSep6: row.transfer_server_sep6 ?? undefined,
+        webAuthEndpoint: row.web_auth_endpoint ?? undefined,
+        directPaymentServer: row.direct_payment_server ?? undefined,
+        kycServer: row.kyc_server ?? undefined,
+        lastCheckedAt: row.last_checked_at ?? undefined,
+        diagnostics: row.diagnostics ?? undefined,
+      },
+    }));
+  } catch {
+    return loadLocalFallbackAnchors();
   }
-
-  const rows = (data ?? []) as AnchorCatalogRow[];
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    domain: row.domain,
-    country: row.country,
-    currency: row.currency,
-    type: row.type,
-    capabilities: {
-      sep24: Boolean(row.sep24),
-      sep6: Boolean(row.sep6),
-      sep31: Boolean(row.sep31),
-      sep10: Boolean(row.sep10),
-      operational: Boolean(row.operational),
-      feeFixed: row.fee_fixed ?? undefined,
-      feePercent: row.fee_percent ?? undefined,
-      feeSource: row.fee_source ?? undefined,
-      transferServerSep24: row.transfer_server_sep24 ?? undefined,
-      transferServerSep6: row.transfer_server_sep6 ?? undefined,
-      webAuthEndpoint: row.web_auth_endpoint ?? undefined,
-      directPaymentServer: row.direct_payment_server ?? undefined,
-      kycServer: row.kyc_server ?? undefined,
-      lastCheckedAt: row.last_checked_at ?? undefined,
-      diagnostics: row.diagnostics ?? undefined,
-    },
-  }));
 }
 
 export async function updateAnchorCapabilities(

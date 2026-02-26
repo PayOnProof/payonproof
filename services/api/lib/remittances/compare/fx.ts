@@ -11,6 +11,12 @@ interface FxCacheValue {
 
 const fxCache = new Map<string, FxCacheValue>();
 
+function fallbackRate(): number {
+  return Number.isFinite(FX_FALLBACK_RATE) && FX_FALLBACK_RATE > 0
+    ? FX_FALLBACK_RATE
+    : 1;
+}
+
 function cacheKey(from: string, to: string): string {
   return `${from.toUpperCase()}-${to.toUpperCase()}`;
 }
@@ -29,9 +35,7 @@ export async function getFxRate(from: string, to: string): Promise<number> {
   // Frankfurter supports fiat ISO-4217 codes (typically 3 letters).
   // If assets are token symbols (e.g. EURC/USDC), keep deterministic fallback.
   if (!/^[A-Z]{3}$/.test(normalizedFrom) || !/^[A-Z]{3}$/.test(normalizedTo)) {
-    return Number.isFinite(FX_FALLBACK_RATE) && FX_FALLBACK_RATE > 0
-      ? FX_FALLBACK_RATE
-      : 1;
+    return fallbackRate();
   }
 
   const key = cacheKey(normalizedFrom, normalizedTo);
@@ -55,9 +59,7 @@ export async function getFxRate(from: string, to: string): Promise<number> {
 
     if (!response.ok) {
       if (response.status === 400 || response.status === 404) {
-        return Number.isFinite(FX_FALLBACK_RATE) && FX_FALLBACK_RATE > 0
-          ? FX_FALLBACK_RATE
-          : 1;
+        return fallbackRate();
       }
       throw new Error(`FX provider error ${response.status} ${response.statusText}`);
     }
@@ -67,17 +69,16 @@ export async function getFxRate(from: string, to: string): Promise<number> {
     };
     const rate = payload.rates?.[normalizedTo];
     if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
-      return Number.isFinite(FX_FALLBACK_RATE) && FX_FALLBACK_RATE > 0
-        ? FX_FALLBACK_RATE
-        : 1;
+      return fallbackRate();
     }
 
     fxCache.set(key, {
       rate,
       expiresAt: Date.now() + FX_CACHE_TTL_MS,
     });
-
     return rate;
+  } catch {
+    return fallbackRate();
   } finally {
     clearTimeout(timeout);
   }
