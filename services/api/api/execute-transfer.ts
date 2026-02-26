@@ -638,11 +638,13 @@ async function prepareAnchorAuth(input: {
 
 function clonePreparedAnchorWithRole(
   base: PreparedAnchorAuth,
-  role: "origin" | "destination"
+  role: "origin" | "destination",
+  assetCode?: string
 ): PreparedAnchorAuth {
   return {
     ...base,
     role,
+    assetCode: assetCode ?? base.assetCode,
   };
 }
 
@@ -728,11 +730,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         asString(route.originCurrency) || originAnchor.currency;
       const destinationAssetCode =
         asString(route.destinationCurrency) || destinationAnchor.currency;
-      const sameAnchorAndAsset =
-        originAnchor.id === destinationAnchor.id &&
-        originAssetCode.toUpperCase() === destinationAssetCode.toUpperCase();
+      const sameAnchor = originAnchor.id === destinationAnchor.id;
 
-      const preparedAnchors = sameAnchorAndAsset
+      const preparedAnchors = sameAnchor
         ? await (async () => {
             const shared = await prepareAnchorAuth({
               role: "origin",
@@ -745,8 +745,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : undefined,
             });
             return [
-              clonePreparedAnchorWithRole(shared, "origin"),
-              clonePreparedAnchorWithRole(shared, "destination"),
+              clonePreparedAnchorWithRole(shared, "origin", originAssetCode),
+              clonePreparedAnchorWithRole(
+                shared,
+                "destination",
+                destinationAssetCode
+              ),
             ];
           })()
         : await Promise.all([
