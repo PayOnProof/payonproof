@@ -51,9 +51,25 @@ function pickString(obj, keys) {
 }
 function toArray(value) {
     if (Array.isArray(value)) {
-        return value
-            .map((item) => (typeof item === "string" ? item.trim() : ""))
-            .filter(Boolean);
+        const out = [];
+        for (const item of value) {
+            if (typeof item === "string" && item.trim()) {
+                out.push(item.trim());
+                continue;
+            }
+            if (isRecord(item)) {
+                const nested = pickString(item, [
+                    "country",
+                    "country_code",
+                    "countryCode",
+                    "code",
+                    "name",
+                ]);
+                if (nested)
+                    out.push(nested);
+            }
+        }
+        return out;
     }
     if (typeof value === "string") {
         return value
@@ -63,9 +79,51 @@ function toArray(value) {
     }
     return [];
 }
+function normalizeCountryName(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+function buildCountryNameToIsoMap() {
+    const byName = new Map();
+    const display = new Intl.DisplayNames(["en"], { type: "region" });
+    for (let first = 65; first <= 90; first += 1) {
+        for (let second = 65; second <= 90; second += 1) {
+            const code = String.fromCharCode(first, second);
+            const name = display.of(code);
+            if (!name || name === code)
+                continue;
+            byName.set(normalizeCountryName(name), code);
+        }
+    }
+    const aliases = {
+        "cote d ivoire": "CI",
+        "democratic republic of the congo": "CD",
+        "congo kinshasa": "CD",
+        "congo brazzaville": "CG",
+        "korea south": "KR",
+        "korea north": "KP",
+        "virgin islands u s": "VI",
+        "virgin islands british": "VG",
+        "worldwide": "ZZ",
+        "global": "ZZ",
+        "eu": "ZZ",
+    };
+    for (const [name, code] of Object.entries(aliases)) {
+        byName.set(normalizeCountryName(name), code);
+    }
+    return byName;
+}
+const COUNTRY_NAME_TO_ISO = buildCountryNameToIsoMap();
 function normalizeCountryCode(value) {
-    const code = value.trim().toUpperCase();
-    return /^[A-Z]{2}$/.test(code) ? code : "";
+    const trimmed = value.trim();
+    const code = trimmed.toUpperCase();
+    if (/^[A-Z]{2}$/.test(code))
+        return code;
+    return COUNTRY_NAME_TO_ISO.get(normalizeCountryName(trimmed)) ?? "";
 }
 function normalizeCurrencyCode(value) {
     const code = value.trim().toUpperCase();
@@ -212,6 +270,13 @@ function normalizeRow(row, active) {
         ...toArray(row.country_code),
         ...toArray(row.country_codes),
         ...toArray(row.countryCode),
+        ...toArray(row.country_name),
+        ...toArray(row.country_names),
+        ...toArray(row.countryName),
+        ...toArray(row.countryNames),
+        ...toArray(row.supported_countries),
+        ...toArray(row.countries_supported),
+        ...toArray(row.locations),
     ]
         .map(normalizeCountryCode)
         .filter(Boolean));

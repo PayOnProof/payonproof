@@ -1,0 +1,366 @@
+{
+  "generatedAt": "2026-02-26T22:38:22.275Z",
+  "source": "https://anchors.stellar.org/#verified-domains",
+  "strategy": "directory-domain-sep",
+  "homeUrl": "https://anchors.stellar.org/",
+  "directoryDomains": [
+    "aps.money",
+    "stellar.expert",
+    "www.alfredpay.io",
+    "www.amero.exchange",
+    "arf.one",
+    "armenotech.com",
+    "www.b",
+    "biccos.com",
+    "www.binance.com",
+    "www.bitfinex.com",
+    "bitmama.io",
+    "www.bitnovo.com",
+    "bitso.com",
+    "www.bitstamp.net",
+    "bittrex.com",
+    "www.busha.co",
+    "www.bybit.com",
+    "cex.io",
+    "www.cebuanalhuillier.com",
+    "www.chippercash.com",
+    "www.circle.com",
+    "clickpesa.com",
+    "coinflip.tech",
+    "www.coinmena.com",
+    "www.coinbase.com",
+    "coincheck.com",
+    "coinme.com",
+    "coinone.co.kr",
+    "crypto.com",
+    "digibankar.com",
+    "www.digitra.com",
+    "dollarize.me",
+    "earnbit.com",
+    "www.etherfuse.com",
+    "finclusive.com",
+    "flutterwave.com",
+    "www.alternativesbyft.com",
+    "stablecoin.z.com",
+    "www.gate.io",
+    "www.huobi.com",
+    "www.idt.net",
+    "impalapay.com",
+    "www2.kbtrading.org",
+    "www.kado.money",
+    "www.kucoin.com",
+    "www.latamex.com",
+    "www.lightnet.io",
+    "www.linkio.africa",
+    "www.mercadobitcoin.com.br",
+    "mercuryo.io",
+    "www.moneygram.com",
+    "www.moonpay.com",
+    "mykobo.co",
+    "www.newton.co",
+    "novatti.com",
+    "www.okcoin.com",
+    "onramp.money",
+    "www.owlting.com",
+    "stellar.ex",
+    "pdax.ph",
+    "pmi-americas.com",
+    "paybis.com",
+    "paychant.com",
+    "perahub.com.ph",
+    "puntored.co",
+    "www.ripio.com",
+    "www.sardine.ai",
+    "www.stablecorp.ca",
+    "triple-a.io",
+    "sg.upbit.com",
+    "whitebit.com",
+    "www.wisdomtree.com",
+    "yellowcard.io",
+    "zeam.money",
+    "www.ntokens.com",
+    "home.anclap.com",
+    "www.bilira.co",
+    "chronospay.io",
+    "clpx.finance",
+    "connect.clickpesa.com",
+    "dcm.systems",
+    "franklintempleton.com",
+    "stellar.moneygram.com",
+    "audd.digital",
+    "mint.zeam.money",
+    "ntokens.com"
+  ],
+  "diagnostics": {
+    "domainsTotal": 86,
+    "skippedNoSep": 21,
+    "skippedNoAssets": 0,
+    "failedToml": 58
+  },
+  "anchors": [
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "XLM"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "XLM"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "FinClusive Capital, Inc.",
+      "domain": "finclusive.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "MYKOBO",
+      "domain": "mykobo.co",
+      "countries": [
+        "CO"
+      ],
+      "currencies": [
+        "EURC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "MYKOBO",
+      "domain": "mykobo.co",
+      "countries": [
+        "CO"
+      ],
+      "currencies": [
+        "EURC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "ARS"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "PEN"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "ARS"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "PEN"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "CLPX"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BTCLN"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "CLPX"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "CLPX S.A.",
+      "domain": "clpx.finance",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BTCLN"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "MoneyGram",
+      "domain": "stellar.moneygram.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "MoneyGram",
+      "domain": "stellar.moneygram.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "nTokens Serviços Digitais Ltda",
+      "domain": "ntokens.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BRL"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "nTokens Serviços Digitais Ltda",
+      "domain": "ntokens.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "BRL"
+      ],
+      "type": "off-ramp",
+      "active": true
+    }
+  ]
+}

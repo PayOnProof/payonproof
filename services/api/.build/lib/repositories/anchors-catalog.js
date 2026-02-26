@@ -9,6 +9,56 @@ const KNOWN_DOMAIN_COUNTRY = {
     "mykobo.co": "CO",
     "finclusive.com": "US",
 };
+const DEFAULT_ALLOWED_ASSETS = ["USDC", "XLM"];
+function normalizeAssetCode(value) {
+    const code = value.trim().toUpperCase();
+    // User typo compatibility: "XML" -> "XLM"
+    if (code === "XML")
+        return "XLM";
+    return code;
+}
+function parseAllowedAssets() {
+    const raw = process.env.ANCHOR_ALLOWED_ASSETS?.trim() ?? "";
+    if (!raw)
+        return new Set(DEFAULT_ALLOWED_ASSETS);
+    if (raw === "*" || raw.toUpperCase() === "ALL")
+        return null;
+    const values = raw
+        .split(/[,\s;]+/g)
+        .map((item) => normalizeAssetCode(item))
+        .filter(Boolean);
+    return new Set(values.length > 0 ? values : DEFAULT_ALLOWED_ASSETS);
+}
+function parseAllowedDomains() {
+    const raw = process.env.ANCHOR_ALLOWED_DOMAINS?.trim() ?? "";
+    if (!raw)
+        return new Set();
+    const values = raw
+        .split(/[,\s;]+/g)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
+    return new Set(values);
+}
+function normalizeDomainForFilter(domain) {
+    const normalized = domain.trim().toLowerCase();
+    return normalized.startsWith("www.") ? normalized.slice(4) : normalized;
+}
+function isAnchorAllowed(anchor) {
+    const allowedAssets = parseAllowedAssets();
+    if (allowedAssets && !allowedAssets.has(normalizeAssetCode(anchor.currency))) {
+        return false;
+    }
+    const allowedDomains = parseAllowedDomains();
+    if (allowedDomains.size === 0)
+        return true;
+    const domain = normalizeDomainForFilter(anchor.domain);
+    if (allowedDomains.has(domain))
+        return true;
+    return allowedDomains.has(`www.${domain}`);
+}
+function filterAnchors(anchors) {
+    return anchors.filter(isAnchorAllowed);
+}
 function normalizeIso2(value) {
     const code = value.trim().toUpperCase();
     return /^[A-Z]{2}$/.test(code) ? code : "";
@@ -154,11 +204,11 @@ export async function getAnchorsForCorridor(input) {
             throw new Error(`anchors_catalog query failed: ${error.message}`);
         }
         const rows = (data ?? []);
-        return rows.map(mapCatalogRow);
+        return filterAnchors(rows.map(mapCatalogRow));
     }
     catch {
         const fallback = loadLocalFallbackAnchors();
-        return fallback.filter((anchor) => anchor.country === input.origin || anchor.country === input.destination);
+        return filterAnchors(fallback.filter((anchor) => anchor.country === input.origin || anchor.country === input.destination));
     }
 }
 export async function upsertAnchorsCatalog(rows) {
@@ -192,10 +242,10 @@ export async function listActiveAnchors() {
             throw new Error(`anchors_catalog list failed: ${error.message}`);
         }
         const rows = (data ?? []);
-        return rows.map(mapCatalogRow);
+        return filterAnchors(rows.map(mapCatalogRow));
     }
     catch {
-        return loadLocalFallbackAnchors();
+        return filterAnchors(loadLocalFallbackAnchors());
     }
 }
 export async function updateAnchorCapabilities(input) {

@@ -6,6 +6,25 @@ const BRIDGE_FEE_PERCENT = 0.2;
 const CAPABILITY_REFRESH_MS = 10 * 60 * 1000;
 const FALLBACK_FEE_PERCENT = Number(process.env.ANCHOR_FALLBACK_FEE_PERCENT ?? 1.5);
 const MAX_ROUTES = Math.max(1, Math.min(12, Number(process.env.MAX_COMPARE_ROUTES ?? 12)));
+function matchesSepAssetKey(key, assetCode) {
+    const normalizedKey = key.trim().toUpperCase();
+    const normalizedAsset = assetCode.trim().toUpperCase();
+    return (normalizedKey === normalizedAsset ||
+        normalizedKey.startsWith(`${normalizedAsset}:`));
+}
+function isSep24AssetSupported(sep24Info, assetCode, role) {
+    if (!sep24Info || typeof sep24Info !== "object")
+        return true;
+    const root = sep24Info;
+    const sectionName = role === "origin" ? "deposit" : "withdraw";
+    const section = root[sectionName];
+    if (!section || typeof section !== "object")
+        return true;
+    const keys = Object.keys(section);
+    if (keys.length === 0)
+        return true;
+    return keys.some((key) => matchesSepAssetKey(key, assetCode));
+}
 function resolveFeePercentForAmount(fee, amount) {
     if (typeof fee.percent === "number" && Number.isFinite(fee.percent) && fee.percent >= 0) {
         return { percent: fee.percent, estimated: false };
@@ -62,9 +81,14 @@ async function resolveAnchorRuntime(anchor) {
             domain: anchor.domain,
             assetCode: anchor.currency,
         });
+        const sep24AssetSupported = isSep24AssetSupported(resolved.raw?.sep24Info, anchor.currency, anchor.type === "on-ramp" ? "origin" : "destination");
+        if (!sep24AssetSupported) {
+            resolved.diagnostics.push(`SEP-24 /info does not support asset ${anchor.currency} for ${anchor.type}`);
+        }
         // Production remittance flow requires SEP-10 auth + SEP-24 interactive flow.
         const operational = Boolean(resolved.sep.sep10 &&
             resolved.sep.sep24 &&
+            sep24AssetSupported &&
             resolved.endpoints.webAuthEndpoint &&
             resolved.endpoints.transferServerSep24);
         const runtime = {

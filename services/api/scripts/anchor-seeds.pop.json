@@ -1,13 +1,18 @@
 [
   {
+    "name": "CLPX",
+    "domain": "clpx.finance",
+    "countries": ["CL"]
+  },
+  {
     "name": "DCM Systems",
     "domain": "dcm.systems",
-    "countries": ["US"]
+    "countries": ["UA"]
   },
   {
     "name": "FinClusive",
     "domain": "finclusive.com",
-    "countries": ["US", "CV", "CI", "DY", "GH", "GM", "GN", "GW", "HV", "LR", "ML", "MR", "NE", "NG", "SL", "SN", "TG"]
+    "countries": ["BJ", "BF", "CV", "CI", "GM", "GH", "GN", "GW", "LR", "ML", "MR", "NE", "NG", "SN", "SL", "TG"]
   },
   {
     "name": "Franklin Templeton",
@@ -22,7 +27,7 @@
   {
     "name": "MYKOBO",
     "domain": "mykobo.co",
-    "countries": ["CO", "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"]
+    "countries": ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"]
   },
   {
     "name": "AUDD",

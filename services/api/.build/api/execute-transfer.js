@@ -1,10 +1,13 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { Keypair, TransactionBuilder } from "@stellar/stellar-sdk";
 import { readJsonBody } from "../lib/http.js";
 import { listActiveAnchors } from "../lib/repositories/anchors-catalog.js";
 import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events.js";
 import { resolveAnchorCapabilities } from "../lib/stellar/capabilities.js";
 import { getPopEnv, getStellarConfig } from "../lib/stellar.js";
 import { applyCors, handleCorsPreflight } from "../lib/cors.js";
+const SEP10_CHALLENGE_CACHE_TTL_MS = 30000;
+const sep10ChallengeCache = new Map();
 function asString(value) {
     return typeof value === "string" ? value.trim() : "";
 }
@@ -73,6 +76,83 @@ function resolveClientDomain(req) {
         return "localhost";
     return "";
 }
+function matchesSepAssetKey(key, assetCode) {
+    const normalizedKey = key.trim().toUpperCase();
+    const normalizedAsset = assetCode.trim().toUpperCase();
+    return (normalizedKey === normalizedAsset ||
+        normalizedKey.startsWith(`${normalizedAsset}:`));
+}
+function isSep24AssetSupported(sep24Info, assetCode, role) {
+    if (!sep24Info || typeof sep24Info !== "object")
+        return true;
+    const root = sep24Info;
+    const sectionName = role === "origin" ? "deposit" : "withdraw";
+    const section = root[sectionName];
+    if (!section || typeof section !== "object")
+        return true;
+    const sectionObj = section;
+    const keys = Object.keys(sectionObj);
+    if (keys.length === 0)
+        return true;
+    return keys.some((key) => {
+        if (!matchesSepAssetKey(key, assetCode))
+            return false;
+        const row = sectionObj[key];
+        if (!row || typeof row !== "object")
+            return true;
+        const enabled = row.enabled;
+        return enabled !== false;
+    });
+}
+function parseSep24AssetKey(key) {
+    const [codeRaw, issuerRaw] = key.split(":");
+    const assetCode = codeRaw?.trim().toUpperCase();
+    if (!assetCode)
+        return null;
+    const assetIssuer = issuerRaw?.trim() || undefined;
+    return { assetCode, assetIssuer };
+}
+function resolveSep24AssetSelection(sep24Info, requestedAssetCode, role) {
+    if (!sep24Info || typeof sep24Info !== "object")
+        return null;
+    const root = sep24Info;
+    const sectionName = role === "origin" ? "deposit" : "withdraw";
+    const section = root[sectionName];
+    if (!section || typeof section !== "object")
+        return null;
+    const sectionObj = section;
+    const keys = Object.keys(sectionObj);
+    if (keys.length === 0)
+        return null;
+    const normalizedRequested = requestedAssetCode.trim().toUpperCase();
+    const isEnabled = (key) => {
+        const row = sectionObj[key];
+        if (!row || typeof row !== "object")
+            return true;
+        const enabled = row.enabled;
+        return enabled !== false;
+    };
+    const enabledKeys = keys.filter((key) => isEnabled(key));
+    const firstEnabledWithIssuer = enabledKeys.find((key) => key.includes(":"));
+    const matched = keys.find((key) => matchesSepAssetKey(key, normalizedRequested) && isEnabled(key));
+    if (matched) {
+        const parsedMatched = parseSep24AssetKey(matched);
+        // If requested matched only a fiat-like code without issuer, prefer a canonical issued asset.
+        if (parsedMatched && !parsedMatched.assetIssuer && firstEnabledWithIssuer) {
+            return parseSep24AssetKey(firstEnabledWithIssuer);
+        }
+        return parsedMatched;
+    }
+    const fallbackEnabled = enabledKeys[0];
+    if (fallbackEnabled)
+        return parseSep24AssetKey(fallbackEnabled);
+    for (const key of keys) {
+        const parsed = parseSep24AssetKey(key);
+        if (parsed)
+            return parsed;
+    }
+    return null;
+}
 function shouldSendSep10ClientDomain() {
     const raw = (process.env.SEP10_SEND_CLIENT_DOMAIN ?? "").trim().toLowerCase();
     return raw === "true" || raw === "1";
@@ -80,6 +160,13 @@ function shouldSendSep10ClientDomain() {
 function shouldSendSep10HomeDomain() {
     const raw = (process.env.SEP10_SEND_HOME_DOMAIN ?? "").trim().toLowerCase();
     return raw === "true" || raw === "1";
+}
+function shouldRequireClientDomainSignature() {
+    const raw = (process.env.SEP10_REQUIRE_CLIENT_SIGNATURE ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
+}
+function getClientDomainSigningSecret() {
+    return process.env.SEP10_CLIENT_DOMAIN_SIGNING_SECRET?.trim() ?? "";
 }
 function getCallbackSecret() {
     const secret = process.env.ANCHOR_CALLBACK_SECRET?.trim() ?? "";
@@ -178,6 +265,17 @@ function decryptStatusRef(statusRef) {
 }
 async function fetchSep10Challenge(input) {
     const webAuthEndpoint = normalizeBaseUrl(input.webAuthEndpoint);
+    const cacheKey = [
+        webAuthEndpoint,
+        input.account,
+        input.homeDomain ?? "",
+        input.clientDomain ?? "",
+        input.memo ?? "",
+    ].join("|");
+    const cached = sep10ChallengeCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.value;
+    }
     const attempts = [];
     if (input.clientDomain) {
         attempts.push({
@@ -220,10 +318,15 @@ async function fetchSep10Challenge(input) {
             lastError = `SEP-10 challenge missing transaction at ${webAuthEndpoint}`;
             continue;
         }
-        return {
+        const value = {
             challengeXdr: payload.transaction,
             networkPassphrase: payload.network_passphrase || getStellarConfig().networkPassphrase,
         };
+        sep10ChallengeCache.set(cacheKey, {
+            expiresAt: Date.now() + SEP10_CHALLENGE_CACHE_TTL_MS,
+            value,
+        });
+        return value;
     }
     throw new Error(lastError || `SEP-10 challenge failed at ${webAuthEndpoint}`);
 }
@@ -250,36 +353,86 @@ async function exchangeSep10Token(input) {
 async function startSep24Interactive(input) {
     const transferServer = normalizeBaseUrl(input.transferServerSep24);
     const endpoint = `${transferServer}/transactions/${input.operation}/interactive`;
-    const body = new URLSearchParams();
-    body.set("asset_code", input.assetCode);
-    body.set("account", input.account);
-    body.set("amount", String(input.amount));
-    if (input.memo)
-        body.set("memo", input.memo);
-    if (input.callbackUrl) {
-        const param = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
-        if (param) {
-            body.set(param, input.callbackUrl);
+    const attempts = [];
+    attempts.push({ assetCode: input.assetCode, assetIssuer: input.assetIssuer });
+    if (input.assetIssuer) {
+        attempts.push({ assetCode: `${input.assetCode}:${input.assetIssuer}` });
+        attempts.push({ assetCode: input.assetCode });
+    }
+    const seen = new Set();
+    const deduped = attempts.filter((attempt) => {
+        const key = `${attempt.assetCode}|${attempt.assetIssuer ?? ""}`;
+        if (seen.has(key))
+            return false;
+        seen.add(key);
+        return true;
+    });
+    let lastError = "";
+    for (const attempt of deduped) {
+        const callbackParam = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
+        const isMoneyGramSep24 = /moneygram\.com$/i.test((() => {
+            try {
+                return new URL(transferServer).hostname;
+            }
+            catch {
+                return transferServer;
+            }
+        })());
+        const requestBody = {
+            asset_code: attempt.assetCode,
+            account: input.account,
+            amount: String(input.amount),
+        };
+        if (attempt.assetIssuer)
+            requestBody.asset_issuer = attempt.assetIssuer;
+        if (isMoneyGramSep24 &&
+            requestBody.asset_code.toUpperCase() === "USDC" &&
+            !requestBody.asset_issuer) {
+            requestBody.asset_issuer = resolveMoneyGramUsdcIssuer();
+        }
+        // MoneyGram SEP-24 can reject non-numeric/custom memo values on interactive init.
+        if (input.memo && !isMoneyGramSep24)
+            requestBody.memo = input.memo;
+        if (input.callbackUrl && callbackParam)
+            requestBody[callbackParam] = input.callbackUrl;
+        // MoneyGram SEP-24 expects JSON payloads.
+        const transportAttempts = [
+            {
+                contentType: "application/json",
+                body: JSON.stringify(requestBody),
+            },
+        ];
+        if (!isMoneyGramSep24) {
+            transportAttempts.push({
+                contentType: "application/x-www-form-urlencoded",
+                body: new URLSearchParams(requestBody).toString(),
+            });
+        }
+        for (const transport of transportAttempts) {
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${input.token}`,
+                    "Content-Type": transport.contentType,
+                    Accept: "application/json",
+                },
+                body: transport.body,
+            });
+            if (!response.ok) {
+                const raw = await response.text();
+                lastError = `SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${raw || response.statusText}. request={asset_code:${requestBody.asset_code}${requestBody.asset_issuer ? `,asset_issuer:${requestBody.asset_issuer}` : ""},account:${requestBody.account},amount:${requestBody.amount}${requestBody.memo ? `,memo:${requestBody.memo}` : ""},content_type:${transport.contentType}}`;
+                continue;
+            }
+            const payload = (await response.json());
+            if (!payload.url) {
+                lastError = `SEP-24 ${input.operation} interactive response missing url at ${transferServer}`;
+                continue;
+            }
+            return { id: payload.id, type: payload.type, url: payload.url };
         }
     }
-    const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${input.token}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-            Accept: "application/json",
-        },
-        body: body.toString(),
-    });
-    if (!response.ok) {
-        const raw = await response.text();
-        throw new Error(`SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${raw || response.statusText}`);
-    }
-    const payload = (await response.json());
-    if (!payload.url) {
-        throw new Error(`SEP-24 ${input.operation} interactive response missing url at ${transferServer}`);
-    }
-    return { id: payload.id, type: payload.type, url: payload.url };
+    throw new Error(lastError ||
+        `SEP-24 ${input.operation} interactive failed at ${transferServer}`);
 }
 async function fetchSep24TransactionStatus(handle) {
     const transferServer = normalizeBaseUrl(handle.transferServerSep24);
@@ -343,7 +496,9 @@ function isMoneyGramDomain(domain) {
         normalized === "previewstellar.moneygram.com");
 }
 function resolveMoneyGramUserMemo() {
-    const raw = process.env.MONEYGRAM_TEST_USER_ID?.trim() ?? "";
+    const raw = process.env.MONEYGRAM_USER_ID?.trim() ??
+        process.env.MONEYGRAM_TEST_USER_ID?.trim() ??
+        "";
     if (!raw)
         return undefined;
     const parsed = Number(raw);
@@ -354,28 +509,92 @@ function resolveMoneyGramUserMemo() {
         return undefined;
     return String(parsed);
 }
+function resolveMoneyGramUsdcIssuer() {
+    const explicit = process.env.MONEYGRAM_USDC_ISSUER?.trim();
+    if (explicit)
+        return explicit;
+    if (getPopEnv() === "staging") {
+        // MoneyGram Sandbox/Testnet USDC issuer
+        return "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+    }
+    // MoneyGram Preview/Production USDC issuer
+    return "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+}
+function isMoneyGramUserIdRequired() {
+    const raw = (process.env.MONEYGRAM_REQUIRE_USER_ID ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
+}
+function shouldSignClientDomainForAnchor(domain) {
+    return isMoneyGramDomain(domain) || shouldRequireClientDomainSignature();
+}
+function signClientDomainChallenge(input) {
+    if (!shouldSignClientDomainForAnchor(input.anchorDomain)) {
+        return input.transactionXdr;
+    }
+    const signingSecret = getClientDomainSigningSecret();
+    if (!signingSecret) {
+        throw new Error("SEP10 client-domain signature required. Set SEP10_CLIENT_DOMAIN_SIGNING_SECRET in API env.");
+    }
+    if (!/^S[A-Z2-7]{55}$/.test(signingSecret)) {
+        throw new Error("Invalid SEP10_CLIENT_DOMAIN_SIGNING_SECRET format. It must be a Stellar secret seed starting with 'S' (not a public key 'G' and not hex/base64).");
+    }
+    const tx = TransactionBuilder.fromXDR(input.transactionXdr, input.networkPassphrase);
+    let keypair;
+    try {
+        keypair = Keypair.fromSecret(signingSecret);
+    }
+    catch {
+        throw new Error("Invalid SEP10_CLIENT_DOMAIN_SIGNING_SECRET value. Use the wallet-domain signing secret that matches SIGNING_KEY in /.well-known/stellar.toml.");
+    }
+    tx.sign(keypair);
+    return tx.toXDR();
+}
 async function prepareAnchorAuth(input) {
     const executionDomain = resolveAnchorDomainForExecution(input.anchor.domain);
-    const moneyGramMemo = isMoneyGramDomain(executionDomain)
-        ? resolveMoneyGramUserMemo()
-        : undefined;
+    const isMoneyGram = isMoneyGramDomain(executionDomain);
+    const moneyGramMemo = isMoneyGram ? resolveMoneyGramUserMemo() : undefined;
+    if (isMoneyGram && isMoneyGramUserIdRequired() && !moneyGramMemo) {
+        throw new Error("MoneyGram user integer memo is required by current config. Set MONEYGRAM_USER_ID (or MONEYGRAM_TEST_USER_ID), or disable MONEYGRAM_REQUIRE_USER_ID.");
+    }
+    if (isMoneyGram && !input.clientDomain) {
+        throw new Error("MoneyGram requires client_domain for SEP-10 challenge. Set SEP10_CLIENT_DOMAIN in API env.");
+    }
     const resolved = await resolveAnchorCapabilities({
         domain: executionDomain,
         assetCode: input.assetCode,
     });
     const webAuthEndpoint = asString(resolved.endpoints.webAuthEndpoint);
     const transferServerSep24 = asString(resolved.endpoints.transferServerSep24);
+    let effectiveAssetCode = input.assetCode.trim().toUpperCase();
+    let effectiveAssetIssuer;
+    const selectedAsset = resolveSep24AssetSelection(resolved.raw?.sep24Info, effectiveAssetCode, input.role);
+    if (selectedAsset && selectedAsset.assetCode === effectiveAssetCode) {
+        effectiveAssetIssuer = selectedAsset.assetIssuer;
+    }
     if (!webAuthEndpoint || !isHttpsUrl(webAuthEndpoint)) {
         throw new Error(`Anchor ${input.anchor.name} has no valid SEP-10 endpoint`);
     }
     if (!transferServerSep24 || !isHttpsUrl(transferServerSep24)) {
         throw new Error(`Anchor ${input.anchor.name} has no valid SEP-24 endpoint`);
     }
+    if (!isSep24AssetSupported(resolved.raw?.sep24Info, effectiveAssetCode, input.role)) {
+        if (selectedAsset) {
+            effectiveAssetCode = selectedAsset.assetCode;
+            effectiveAssetIssuer = selectedAsset.assetIssuer;
+        }
+        else {
+            throw new Error(`Anchor ${input.anchor.name} does not support asset_code '${input.assetCode}' for ${input.role === "origin" ? "deposit" : "withdraw"} in SEP-24 /info`);
+        }
+    }
+    if (isMoneyGram && effectiveAssetCode === "USDC" && !effectiveAssetIssuer) {
+        effectiveAssetIssuer = resolveMoneyGramUsdcIssuer();
+    }
     const challenge = await fetchSep10Challenge({
         webAuthEndpoint,
         account: input.account,
         memo: moneyGramMemo,
-        homeDomain: shouldSendSep10HomeDomain() ? executionDomain : undefined,
+        // SEP-10 home_domain is the client (wallet) domain, not the anchor domain.
+        homeDomain: isMoneyGram || shouldSendSep10HomeDomain() ? input.clientDomain : undefined,
         clientDomain: input.clientDomain,
     });
     return {
@@ -383,13 +602,21 @@ async function prepareAnchorAuth(input) {
         anchorId: input.anchor.id,
         anchorName: input.anchor.name,
         domain: executionDomain,
-        assetCode: input.assetCode,
+        assetCode: effectiveAssetCode,
+        assetIssuer: effectiveAssetIssuer,
         amount: input.amount,
         account: input.account,
         webAuthEndpoint,
         transferServerSep24,
         challengeXdr: challenge.challengeXdr,
         networkPassphrase: challenge.networkPassphrase,
+    };
+}
+function clonePreparedAnchorWithRole(base, role, assetCode) {
+    return {
+        ...base,
+        role,
+        assetCode: assetCode ?? base.assetCode,
     };
 }
 export default async function handler(req, res) {
@@ -430,21 +657,32 @@ export default async function handler(req, res) {
                     error: "Selected route is not operational. Choose an available route (anchors with valid SEP-10/SEP-24).",
                 });
             }
-            if (shouldSendSep10ClientDomain() && !clientDomain) {
+            const anchors = await listActiveAnchors();
+            const originAnchor = findAnchorById(anchors, asString(route.originAnchor?.id));
+            const destinationAnchor = findAnchorById(anchors, asString(route.destinationAnchor?.id));
+            const routeUsesMoneyGram = isMoneyGramDomain(originAnchor.domain) ||
+                isMoneyGramDomain(destinationAnchor.domain);
+            const mustSendClientDomain = shouldSendSep10ClientDomain() || routeUsesMoneyGram;
+            if (mustSendClientDomain && !clientDomain) {
                 return res.status(400).json({
-                    error: "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env or disable SEP10_SEND_CLIENT_DOMAIN.",
+                    error: "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env.",
                 });
             }
-            if (shouldSendSep10ClientDomain() &&
+            if (mustSendClientDomain &&
                 getPopEnv() === "production" &&
                 isLocalDomain(clientDomain)) {
                 return res.status(400).json({
                     error: "Invalid SEP10_CLIENT_DOMAIN for production. Use a public domain, not localhost.",
                 });
             }
-            const anchors = await listActiveAnchors();
-            const originAnchor = findAnchorById(anchors, asString(route.originAnchor?.id));
-            const destinationAnchor = findAnchorById(anchors, asString(route.destinationAnchor?.id));
+            if (mustSendClientDomain &&
+                (shouldSignClientDomainForAnchor(originAnchor.domain) ||
+                    shouldSignClientDomainForAnchor(destinationAnchor.domain)) &&
+                !getClientDomainSigningSecret()) {
+                return res.status(400).json({
+                    error: "Missing SEP10_CLIENT_DOMAIN_SIGNING_SECRET. Required for client_domain authentication with selected anchor(s).",
+                });
+            }
             if (!isAnchorExecutionReady(originAnchor) || !isAnchorExecutionReady(destinationAnchor)) {
                 return res.status(400).json({
                     error: "Selected anchors are not execution-ready. They must support SEP-10 and SEP-24 with valid endpoints.",
@@ -454,22 +692,28 @@ export default async function handler(req, res) {
                 .toString(36)
                 .slice(2, 8)
                 .toUpperCase()}`;
+            const originAssetCode = asString(route.originCurrency) || originAnchor.currency;
+            const destinationAssetCode = asString(route.destinationCurrency) || destinationAnchor.currency;
             const preparedAnchors = await Promise.all([
                 prepareAnchorAuth({
                     role: "origin",
                     anchor: originAnchor,
-                    assetCode: asString(route.originCurrency) || originAnchor.currency,
+                    assetCode: originAssetCode,
                     amount,
                     account: senderAccount,
-                    clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
+                    clientDomain: mustSendClientDomain
+                        ? clientDomain
+                        : undefined,
                 }),
                 prepareAnchorAuth({
                     role: "destination",
                     anchor: destinationAnchor,
-                    assetCode: asString(route.destinationCurrency) || destinationAnchor.currency,
+                    assetCode: destinationAssetCode,
                     amount,
                     account: senderAccount,
-                    clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
+                    clientDomain: mustSendClientDomain
+                        ? clientDomain
+                        : undefined,
                 }),
             ]);
             const prepared = {
@@ -483,7 +727,7 @@ export default async function handler(req, res) {
             return res.status(200).json({
                 status: "needs_signature",
                 meta: {
-                    clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
+                    clientDomain: mustSendClientDomain ? clientDomain : undefined,
                 },
                 prepared,
             });
@@ -565,6 +809,7 @@ export default async function handler(req, res) {
         }
         const interactiveByRole = {};
         const statusHandles = [];
+        const sep10TokenByChallenge = new Map();
         const callbackToken = randomBytes(18).toString("hex");
         const callbackUrl = buildCallbackUrl(req, prepared.transactionId, callbackToken);
         for (const anchor of prepared.anchors) {
@@ -572,16 +817,27 @@ export default async function handler(req, res) {
             if (!signedChallengeXdr) {
                 return res.status(400).json({ error: `Missing signature for role '${anchor.role}'` });
             }
-            const token = await exchangeSep10Token({
-                webAuthEndpoint: anchor.webAuthEndpoint,
-                signedChallengeXdr,
+            const signedWithClientDomain = signClientDomainChallenge({
+                transactionXdr: signedChallengeXdr,
+                networkPassphrase: anchor.networkPassphrase,
+                anchorDomain: anchor.domain,
             });
+            const tokenCacheKey = `${anchor.webAuthEndpoint}|${signedWithClientDomain}`;
+            let token = sep10TokenByChallenge.get(tokenCacheKey);
+            if (!token) {
+                token = await exchangeSep10Token({
+                    webAuthEndpoint: anchor.webAuthEndpoint,
+                    signedChallengeXdr: signedWithClientDomain,
+                });
+                sep10TokenByChallenge.set(tokenCacheKey, token);
+            }
             const operation = anchor.role === "origin" ? "deposit" : "withdraw";
             const interactive = await startSep24Interactive({
                 transferServerSep24: anchor.transferServerSep24,
                 token,
                 operation,
                 assetCode: anchor.assetCode,
+                assetIssuer: anchor.assetIssuer,
                 account: anchor.account,
                 amount: anchor.amount,
                 memo: prepared.transactionId,
