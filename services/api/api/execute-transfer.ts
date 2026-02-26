@@ -552,53 +552,62 @@ async function startSep24Interactive(input: {
 
   let lastError = "";
   for (const attempt of deduped) {
-    const body = new URLSearchParams();
-    body.set("asset_code", attempt.assetCode);
-    if (attempt.assetIssuer) {
-      body.set("asset_issuer", attempt.assetIssuer);
-    }
-    body.set("account", input.account);
-    body.set("amount", String(input.amount));
-    if (input.memo) body.set("memo", input.memo);
-    if (input.callbackUrl) {
-      const param = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
-      if (param) {
-        body.set(param, input.callbackUrl);
-      }
-    }
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${input.token}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: body.toString(),
-    });
-
-    if (!response.ok) {
-      const raw = await response.text();
-      lastError = `SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${
-        raw || response.statusText
-      }. request={asset_code:${attempt.assetCode}${
-        attempt.assetIssuer ? `,asset_issuer:${attempt.assetIssuer}` : ""
-      },account:${input.account},amount:${input.amount}}`;
-      continue;
-    }
-
-    const payload = (await response.json()) as {
-      id?: string;
-      type?: string;
-      url?: string;
+    const callbackParam = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
+    const requestBody: Record<string, string> = {
+      asset_code: attempt.assetCode,
+      account: input.account,
+      amount: String(input.amount),
     };
+    if (attempt.assetIssuer) requestBody.asset_issuer = attempt.assetIssuer;
+    if (input.memo) requestBody.memo = input.memo;
+    if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
 
-    if (!payload.url) {
-      lastError = `SEP-24 ${input.operation} interactive response missing url at ${transferServer}`;
-      continue;
+    // Some anchors (MoneyGram sandbox) require JSON, others expect form-encoded.
+    const transportAttempts: Array<{ contentType: string; body: string }> = [
+      {
+        contentType: "application/json",
+        body: JSON.stringify(requestBody),
+      },
+      {
+        contentType: "application/x-www-form-urlencoded",
+        body: new URLSearchParams(requestBody).toString(),
+      },
+    ];
+
+    for (const transport of transportAttempts) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${input.token}`,
+          "Content-Type": transport.contentType,
+          Accept: "application/json",
+        },
+        body: transport.body,
+      });
+
+      if (!response.ok) {
+        const raw = await response.text();
+        lastError = `SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${
+          raw || response.statusText
+        }. request={asset_code:${attempt.assetCode}${
+          attempt.assetIssuer ? `,asset_issuer:${attempt.assetIssuer}` : ""
+        },account:${input.account},amount:${input.amount},content_type:${transport.contentType}}`;
+        continue;
+      }
+
+      const payload = (await response.json()) as {
+        id?: string;
+        type?: string;
+        url?: string;
+      };
+
+      if (!payload.url) {
+        lastError = `SEP-24 ${input.operation} interactive response missing url at ${transferServer}`;
+        continue;
+      }
+
+      return { id: payload.id, type: payload.type, url: payload.url };
     }
-
-    return { id: payload.id, type: payload.type, url: payload.url };
   }
 
   throw new Error(
