@@ -213,11 +213,25 @@ function resolveSep24AssetSelection(
   const sectionName = role === "origin" ? "deposit" : "withdraw";
   const section = root[sectionName];
   if (!section || typeof section !== "object") return null;
-  const keys = Object.keys(section as Record<string, unknown>);
+  const sectionObj = section as Record<string, unknown>;
+  const keys = Object.keys(sectionObj);
   if (keys.length === 0) return null;
   const normalizedRequested = requestedAssetCode.trim().toUpperCase();
-  const matched = keys.find((key) => matchesSepAssetKey(key, normalizedRequested));
+  const isEnabled = (key: string): boolean => {
+    const row = sectionObj[key];
+    if (!row || typeof row !== "object") return true;
+    const enabled = (row as Record<string, unknown>).enabled;
+    return enabled !== false;
+  };
+
+  const matched = keys.find(
+    (key) => matchesSepAssetKey(key, normalizedRequested) && isEnabled(key)
+  );
   if (matched) return parseSep24AssetKey(matched);
+
+  const fallbackEnabled = keys.find((key) => isEnabled(key));
+  if (fallbackEnabled) return parseSep24AssetKey(fallbackEnabled);
+
   for (const key of keys) {
     const parsed = parseSep24AssetKey(key);
     if (parsed) return parsed;
@@ -505,53 +519,76 @@ async function startSep24Interactive(input: {
 }): Promise<{ id?: string; url: string; type?: string }> {
   const transferServer = normalizeBaseUrl(input.transferServerSep24);
   const endpoint = `${transferServer}/transactions/${input.operation}/interactive`;
-  const body = new URLSearchParams();
-  body.set("asset_code", input.assetCode);
+  const attempts: Array<{ assetCode: string; assetIssuer?: string }> = [];
+  attempts.push({ assetCode: input.assetCode, assetIssuer: input.assetIssuer });
   if (input.assetIssuer) {
-    body.set("asset_issuer", input.assetIssuer);
-  }
-  body.set("account", input.account);
-  body.set("amount", String(input.amount));
-  if (input.memo) body.set("memo", input.memo);
-  if (input.callbackUrl) {
-    const param = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
-    if (param) {
-      body.set(param, input.callbackUrl);
-    }
+    attempts.push({ assetCode: `${input.assetCode}:${input.assetIssuer}` });
+    attempts.push({ assetCode: input.assetCode });
   }
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.token}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: body.toString(),
+  const seen = new Set<string>();
+  const deduped = attempts.filter((attempt) => {
+    const key = `${attempt.assetCode}|${attempt.assetIssuer ?? ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 
-  if (!response.ok) {
-    const raw = await response.text();
-    throw new Error(
-      `SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${
+  let lastError = "";
+  for (const attempt of deduped) {
+    const body = new URLSearchParams();
+    body.set("asset_code", attempt.assetCode);
+    if (attempt.assetIssuer) {
+      body.set("asset_issuer", attempt.assetIssuer);
+    }
+    body.set("account", input.account);
+    body.set("amount", String(input.amount));
+    if (input.memo) body.set("memo", input.memo);
+    if (input.callbackUrl) {
+      const param = process.env.SEP24_CALLBACK_URL_PARAM?.trim();
+      if (param) {
+        body.set(param, input.callbackUrl);
+      }
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${input.token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+
+    if (!response.ok) {
+      const raw = await response.text();
+      lastError = `SEP-24 ${input.operation} interactive failed at ${transferServer} (${response.status}): ${
         raw || response.statusText
-      }`
-    );
+      }. request={asset_code:${attempt.assetCode}${
+        attempt.assetIssuer ? `,asset_issuer:${attempt.assetIssuer}` : ""
+      },account:${input.account},amount:${input.amount}}`;
+      continue;
+    }
+
+    const payload = (await response.json()) as {
+      id?: string;
+      type?: string;
+      url?: string;
+    };
+
+    if (!payload.url) {
+      lastError = `SEP-24 ${input.operation} interactive response missing url at ${transferServer}`;
+      continue;
+    }
+
+    return { id: payload.id, type: payload.type, url: payload.url };
   }
 
-  const payload = (await response.json()) as {
-    id?: string;
-    type?: string;
-    url?: string;
-  };
-
-  if (!payload.url) {
-    throw new Error(
-      `SEP-24 ${input.operation} interactive response missing url at ${transferServer}`
-    );
-  }
-
-  return { id: payload.id, type: payload.type, url: payload.url };
+  throw new Error(
+    lastError ||
+      `SEP-24 ${input.operation} interactive failed at ${transferServer}`
+  );
 }
 
 async function fetchSep24TransactionStatus(
