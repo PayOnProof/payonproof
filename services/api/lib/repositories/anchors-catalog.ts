@@ -69,6 +69,56 @@ const KNOWN_DOMAIN_COUNTRY: Record<string, string> = {
   "finclusive.com": "US",
 };
 
+const DEFAULT_ALLOWED_ASSETS = ["USDC", "XLM"] as const;
+
+function normalizeAssetCode(value: string): string {
+  const code = value.trim().toUpperCase();
+  // User typo compatibility: "XML" -> "XLM"
+  if (code === "XML") return "XLM";
+  return code;
+}
+
+function parseAllowedAssets(): Set<string> {
+  const raw = process.env.ANCHOR_ALLOWED_ASSETS?.trim() ?? "";
+  if (!raw) return new Set(DEFAULT_ALLOWED_ASSETS);
+  const values = raw
+    .split(/[,\s;]+/g)
+    .map((item) => normalizeAssetCode(item))
+    .filter(Boolean);
+  return new Set(values.length > 0 ? values : DEFAULT_ALLOWED_ASSETS);
+}
+
+function parseAllowedDomains(): Set<string> {
+  const raw = process.env.ANCHOR_ALLOWED_DOMAINS?.trim() ?? "";
+  if (!raw) return new Set();
+  const values = raw
+    .split(/[,\s;]+/g)
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set(values);
+}
+
+function normalizeDomainForFilter(domain: string): string {
+  const normalized = domain.trim().toLowerCase();
+  return normalized.startsWith("www.") ? normalized.slice(4) : normalized;
+}
+
+function isAnchorAllowed(anchor: AnchorCatalogEntry): boolean {
+  const allowedAssets = parseAllowedAssets();
+  if (!allowedAssets.has(normalizeAssetCode(anchor.currency))) return false;
+
+  const allowedDomains = parseAllowedDomains();
+  if (allowedDomains.size === 0) return true;
+
+  const domain = normalizeDomainForFilter(anchor.domain);
+  if (allowedDomains.has(domain)) return true;
+  return allowedDomains.has(`www.${domain}`);
+}
+
+function filterAnchors(anchors: AnchorCatalogEntry[]): AnchorCatalogEntry[] {
+  return anchors.filter(isAnchorAllowed);
+}
+
 function normalizeIso2(value: string): string {
   const code = value.trim().toUpperCase();
   return /^[A-Z]{2}$/.test(code) ? code : "";
@@ -225,12 +275,14 @@ export async function getAnchorsForCorridor(input: {
     }
 
     const rows = (data ?? []) as AnchorCatalogRow[];
-    return rows.map(mapCatalogRow);
+    return filterAnchors(rows.map(mapCatalogRow));
   } catch {
     const fallback = loadLocalFallbackAnchors();
-    return fallback.filter(
-      (anchor) =>
-        anchor.country === input.origin || anchor.country === input.destination
+    return filterAnchors(
+      fallback.filter(
+        (anchor) =>
+          anchor.country === input.origin || anchor.country === input.destination
+      )
     );
   }
 }
@@ -277,9 +329,9 @@ export async function listActiveAnchors(): Promise<AnchorCatalogEntry[]> {
     }
 
     const rows = (data ?? []) as AnchorCatalogRow[];
-    return rows.map(mapCatalogRow);
+    return filterAnchors(rows.map(mapCatalogRow));
   } catch {
-    return loadLocalFallbackAnchors();
+    return filterAnchors(loadLocalFallbackAnchors());
   }
 }
 

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "DCM Systems",
+    "domain": "dcm.systems",
+    "countries": ["US"]
+  },
+  {
+    "name": "FinClusive",
+    "domain": "finclusive.com",
+    "countries": ["US", "CV", "CI", "DY", "GH", "GM", "GN", "GW", "HV", "LR", "ML", "MR", "NE", "NG", "SL", "SN", "TG"]
+  },
+  {
+    "name": "Franklin Templeton",
+    "domain": "franklintempleton.com",
+    "countries": ["US"]
+  },
+  {
+    "name": "Z.com Stablecoin",
+    "domain": "stablecoin.z.com",
+    "countries": ["JP"]
+  },
+  {
+    "name": "MYKOBO",
+    "domain": "mykobo.co",
+    "countries": ["CO", "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"]
+  },
+  {
+    "name": "AUDD",
+    "domain": "audd.digital",
+    "countries": ["AU"]
+  },
+  {
+    "name": "ZEAM Mint",
+    "domain": "mint.zeam.money",
+    "countries": ["CD", "MW", "ZA", "ZM", "ZW"]
+  },
+  {
+    "name": "nTokens",
+    "domain": "ntokens.com",
+    "countries": ["BR"]
+  }
+]

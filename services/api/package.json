@@ -14,6 +14,7 @@
     "anchors:bootstrap": "node scripts/bootstrap-anchors.mjs",
     "anchors:export:directory": "node scripts/export-anchors-from-directory.mjs",
     "anchors:seed:import": "node scripts/import-anchor-seeds.mjs",
+    "anchors:seed:import:pop": "node scripts/import-anchor-seeds.mjs --file ./scripts/anchor-seeds.pop.json --api http://localhost:3001 --apply --refresh-limit 300",
     "anchors:auto:sync": "node scripts/auto-sync-anchors.mjs"
   },
   "dependencies": {
