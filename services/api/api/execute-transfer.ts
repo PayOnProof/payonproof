@@ -163,6 +163,16 @@ function resolveClientDomain(req: VercelRequest): string {
   return "";
 }
 
+function shouldSendSep10ClientDomain(): boolean {
+  const raw = (process.env.SEP10_SEND_CLIENT_DOMAIN ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "1";
+}
+
+function shouldSendSep10HomeDomain(): boolean {
+  const raw = (process.env.SEP10_SEND_HOME_DOMAIN ?? "").trim().toLowerCase();
+  return raw === "true" || raw === "1";
+}
+
 function getCallbackSecret(): string {
   const secret = process.env.ANCHOR_CALLBACK_SECRET?.trim() ?? "";
   if (
@@ -543,7 +553,7 @@ async function prepareAnchorAuth(input: {
     webAuthEndpoint,
     account: input.account,
     memo: moneyGramMemo,
-    homeDomain: executionDomain,
+    homeDomain: shouldSendSep10HomeDomain() ? executionDomain : undefined,
     clientDomain: input.clientDomain,
   });
 
@@ -605,13 +615,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             "Selected route is not operational. Choose an available route (anchors with valid SEP-10/SEP-24).",
         });
       }
-      if (!clientDomain) {
+      if (shouldSendSep10ClientDomain() && !clientDomain) {
         return res.status(400).json({
           error:
-            "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env.",
+            "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env or disable SEP10_SEND_CLIENT_DOMAIN.",
         });
       }
-      if (getPopEnv() === "production" && isLocalDomain(clientDomain)) {
+      if (
+        shouldSendSep10ClientDomain() &&
+        getPopEnv() === "production" &&
+        isLocalDomain(clientDomain)
+      ) {
         return res.status(400).json({
           error:
             "Invalid SEP10_CLIENT_DOMAIN for production. Use a public domain, not localhost.",
@@ -643,7 +657,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assetCode: asString(route.originCurrency) || originAnchor.currency,
           amount,
           account: senderAccount,
-          clientDomain,
+          clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
         }),
         prepareAnchorAuth({
           role: "destination",
@@ -651,7 +665,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assetCode: asString(route.destinationCurrency) || destinationAnchor.currency,
           amount,
           account: senderAccount,
-          clientDomain,
+          clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
         }),
       ]);
 
@@ -667,7 +681,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         status: "needs_signature",
         meta: {
-          clientDomain,
+          clientDomain: shouldSendSep10ClientDomain() ? clientDomain : undefined,
         },
         prepared,
       });
