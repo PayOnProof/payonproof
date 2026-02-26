@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { listActiveAnchors } from "../../lib/repositories/anchors-catalog.js";
+import { applyCors, handleCorsPreflight } from "../../lib/cors.js";
 
 interface CountryRow {
   code: string;
@@ -17,6 +18,9 @@ const countryNames =
     : null;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handleCorsPreflight(req, res, ["GET", "OPTIONS"])) return;
+  applyCors(req, res, ["GET", "OPTIONS"]);
+
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }

@@ -6,6 +6,7 @@ import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events.js";
 import type { AnchorCatalogEntry } from "../lib/remittances/compare/types.js";
 import { resolveAnchorCapabilities } from "../lib/stellar/capabilities.js";
 import { getPopEnv, getStellarConfig } from "../lib/stellar.js";
+import { applyCors, handleCorsPreflight } from "../lib/cors.js";
 
 /**
  * POST /api/execute-transfer
@@ -562,6 +563,9 @@ async function prepareAnchorAuth(input: {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (handleCorsPreflight(req, res, ["POST", "OPTIONS"])) return;
+  applyCors(req, res, ["POST", "OPTIONS"]);
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
