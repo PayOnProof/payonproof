@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 interface RouteCardProps {
   route: RemittanceRoute;
   onSelect: (route: RemittanceRoute) => void;
+  selectable?: boolean;
+  selectionHint?: string;
   index?: number;
 }
 
@@ -50,6 +52,8 @@ const STATUS_CONFIG = {
 export function RouteCard({
   route,
   onSelect,
+  selectable = true,
+  selectionHint,
   index = 0,
 }: RouteCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -188,7 +192,7 @@ export function RouteCard({
             </div>
             <Button
               onClick={() => onSelect(route)}
-              disabled={!route.available}
+              disabled={!route.available || !selectable}
               className={cn(
                 "w-full min-w-[130px] rounded-xl font-bold sm:w-auto",
                 "transition-all duration-200",
@@ -202,6 +206,14 @@ export function RouteCard({
               Select Route
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
+            {!route.available && (
+              <p className="text-xs text-destructive">Route unavailable</p>
+            )}
+            {route.available && !selectable && (
+              <p className="text-xs text-muted-foreground">
+                {selectionHint ?? "Not selectable in this mode"}
+              </p>
+            )}
           </div>
         </div>
 

@@ -93,6 +93,10 @@ function SendPageContent() {
   );
 
   const handleSelectRoute = useCallback((route: RemittanceRoute) => {
+    const isMoneyGramRoute =
+      route.originAnchor.name.toLowerCase().includes("moneygram") &&
+      route.destinationAnchor.name.toLowerCase().includes("moneygram");
+    if (!route.available || !isMoneyGramRoute) return;
     setSelectedRoute(route);
     setStep("execute");
   }, []);
@@ -295,7 +299,12 @@ function SendPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedRoutes.map((route) => (
+                    {sortedRoutes.map((route) => {
+                      const moneyGramOnly =
+                        route.originAnchor.name.toLowerCase().includes("moneygram") &&
+                        route.destinationAnchor.name.toLowerCase().includes("moneygram");
+                      const selectable = route.available && moneyGramOnly;
+                      return (
                       <tr
                         key={route.id}
                         className={cn(
@@ -356,7 +365,7 @@ function SendPageContent() {
                           <Button
                             size="sm"
                             onClick={() => handleSelectRoute(route)}
-                            disabled={!route.available}
+                            disabled={!selectable}
                             className={cn(
                               "rounded-lg text-xs font-bold",
                               "transition-all duration-200",
@@ -367,11 +376,11 @@ function SendPageContent() {
                                 : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
                             )}
                           >
-                            Select
+                            {selectable ? "Select" : "Locked"}
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -385,6 +394,12 @@ function SendPageContent() {
                     key={route.id}
                     route={route}
                     onSelect={handleSelectRoute}
+                    selectable={
+                      route.available &&
+                      route.originAnchor.name.toLowerCase().includes("moneygram") &&
+                      route.destinationAnchor.name.toLowerCase().includes("moneygram")
+                    }
+                    selectionHint="Only MoneyGram routes are selectable right now"
                     index={i}
                   />
                 ))}
