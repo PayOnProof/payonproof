@@ -800,7 +800,7 @@ function signClientDomainChallenge(input: {
     );
   }
   tx.sign(keypair);
-  return tx.toXDR();
+  return tx.toEnvelope().toXDR("base64");
 }
 
 async function prepareAnchorAuth(input: {
