@@ -5,6 +5,6 @@ ACCOUNTS=["GAEOKX5WDJQYCHEDLPH64NTPKDA2B3KOHZIDLM77TQAMEYMTXU4FVEMX"]
 
 [DOCUMENTATION]
 ORG_NAME="PayOnProof"
-ORG_URL="https://payonproof.vercel.app"
+ORG_URL="payonprooftest.vercel.app"
 ORG_DESCRIPTION="Multi-anchor routing for cross-border SME payments on Stellar."
   
