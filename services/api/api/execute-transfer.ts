@@ -758,7 +758,11 @@ function isMoneyGramUserIdRequired(): boolean {
 }
 
 function shouldSignClientDomainForAnchor(domain: string): boolean {
-  return isMoneyGramDomain(domain) || shouldRequireClientDomainSignature();
+  return (
+    isMoneyGramDomain(domain) ||
+    shouldRequireClientDomainSignature() ||
+    shouldSendSep10ClientDomain()
+  );
 }
 
 function signClientDomainChallenge(input: {
