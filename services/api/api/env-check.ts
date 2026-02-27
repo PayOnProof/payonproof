@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { Keypair } from "@stellar/stellar-sdk";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -14,6 +15,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     process.env.SEP10_CLIENT_DOMAIN_SIGNING_SECRET ?? "";
   const webOrigin = process.env.WEB_ORIGIN ?? "";
 
+  let clientDomainSigningPublicKey: string | null = null;
+  if (sep10ClientDomainSigningSecret) {
+    try {
+      clientDomainSigningPublicKey = Keypair.fromSecret(
+        sep10ClientDomainSigningSecret.trim()
+      ).publicKey();
+    } catch {
+      clientDomainSigningPublicKey = "invalid_secret";
+    }
+  }
+
   return res.status(200).json({
     cwd: process.cwd(),
     nodeEnv: process.env.NODE_ENV ?? null,
@@ -28,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sendClientDomain: sep10SendClientDomain || null,
       sendHomeDomain: sep10SendHomeDomain || null,
       hasClientDomainSigningSecret: Boolean(sep10ClientDomainSigningSecret),
+      clientDomainSigningPublicKey,
     },
   });
 }
