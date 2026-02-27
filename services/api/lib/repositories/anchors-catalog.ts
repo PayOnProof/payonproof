@@ -67,6 +67,8 @@ const KNOWN_DOMAIN_COUNTRY: Record<string, string> = {
   "www.ntokens.com": "BR",
   "mykobo.co": "CO",
   "finclusive.com": "US",
+  "harbor.owlpay.com": "PH",
+  "owlpay.com": "PH",
 };
 
 const DEFAULT_ALLOWED_ASSETS = ["USDC", "XLM"] as const;
