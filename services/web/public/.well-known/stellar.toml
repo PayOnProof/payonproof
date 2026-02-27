@@ -5,7 +5,7 @@ SIGNING_KEY = "GBOXN6SXEAOWCTWE4XKMSYZY3QTH3MU5TQTAISL5X7DDJD3F33PFOIN5"
 
 [DOCUMENTATION]
 ORG_NAME = "PayOnProof"
-ORG_URL = "https://payonproof.vercel.app"
+ORG_URL = "https://payonproofweb.vercel.app"
 ORG_DESCRIPTION = "PayOnProof non-custodial wallet domain for SEP-10 client_domain."
 ORG_SUPPORT_EMAIL="web2@cnet.co.cr"
 
