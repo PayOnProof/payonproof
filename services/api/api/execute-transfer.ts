@@ -122,6 +122,21 @@ function normalizeBaseUrl(url: string): string {
 
 function resolveAnchorDomainForExecution(domain: string): string {
   const normalized = toHostname(domain);
+
+  const useMoneyGramPreview = (() => {
+    const raw = (process.env.MONEYGRAM_USE_PREVIEW ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
+  })();
+
+  if (
+    useMoneyGramPreview &&
+    (normalized === "stellar.moneygram.com" ||
+      normalized === "extstellar.moneygram.com" ||
+      normalized === "previewstellar.moneygram.com")
+  ) {
+    return "previewstellar.moneygram.com";
+  }
+
   if (getPopEnv() !== "staging") return normalized;
 
   // MoneyGram test environment mapping for staging/testnet flows.
