@@ -809,12 +809,27 @@ function signClientDomainChallenge(input: {
     input.transactionXdr,
     input.networkPassphrase
   );
+  const clientDomainOp = (
+    tx.operations as unknown as Array<Record<string, unknown>>
+  ).find(
+    (op) => op?.type === "manageData" && op?.name === "client_domain"
+  );
+  const requiredClientDomainSigner =
+    typeof clientDomainOp?.source === "string" ? clientDomainOp.source : undefined;
   let keypair: Keypair;
   try {
     keypair = Keypair.fromSecret(signingSecret);
   } catch {
     throw new Error(
       "Invalid SEP10_CLIENT_DOMAIN_SIGNING_SECRET value. Use the wallet-domain signing secret that matches SIGNING_KEY in /.well-known/stellar.toml."
+    );
+  }
+  if (
+    requiredClientDomainSigner &&
+    requiredClientDomainSigner !== keypair.publicKey()
+  ) {
+    throw new Error(
+      `SEP10 client-domain signer mismatch. Challenge requires '${requiredClientDomainSigner}' for client_domain, but SEP10_CLIENT_DOMAIN_SIGNING_SECRET resolves to '${keypair.publicKey()}'.`
     );
   }
   tx.sign(keypair);
