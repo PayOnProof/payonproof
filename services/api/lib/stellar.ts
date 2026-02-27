@@ -3,8 +3,21 @@ import { Horizon } from "@stellar/stellar-sdk";
 export type PopEnv = "production" | "staging";
 
 export function getPopEnv(): PopEnv {
-  const raw = (process.env.POP_ENV ?? "production").trim().toLowerCase();
-  return raw === "staging" ? "staging" : "production";
+  const explicit = (process.env.POP_ENV ?? "").trim().toLowerCase();
+  if (explicit === "staging") return "staging";
+  if (explicit === "production") return "production";
+
+  const passphrase = (process.env.STELLAR_NETWORK_PASSPHRASE ?? "").trim();
+  if (passphrase === "Test SDF Network ; September 2015") {
+    return "staging";
+  }
+
+  const horizon = (process.env.STELLAR_HORIZON_URL ?? "").trim().toLowerCase();
+  if (horizon.includes("horizon-testnet.stellar.org")) {
+    return "staging";
+  }
+
+  return "production";
 }
 
 export function getStellarConfig() {

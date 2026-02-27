@@ -125,7 +125,10 @@ function resolveAnchorDomainForExecution(domain: string): string {
   if (getPopEnv() !== "staging") return normalized;
 
   // MoneyGram test environment mapping for staging/testnet flows.
-  if (normalized === "stellar.moneygram.com") {
+  if (
+    normalized === "stellar.moneygram.com" ||
+    normalized === "previewstellar.moneygram.com"
+  ) {
     return "extstellar.moneygram.com";
   }
   return normalized;
