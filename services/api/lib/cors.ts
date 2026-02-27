@@ -26,9 +26,7 @@ export function applyCors(
   res: VercelResponse,
   methods: string[]
 ): void {
-  const origin = resolveOrigin(req);
-  res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", methods.join(","));
   res.setHeader(
     "Access-Control-Allow-Headers",
