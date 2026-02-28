@@ -207,9 +207,9 @@ export function TransactionExecution({
                   1 {route.originCurrency} = {route.exchangeRate} {route.destinationCurrency}
                 </span>
               </div>
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-3 flex items-start justify-between gap-3">
                 <span className="text-muted-foreground">Wallet</span>
-                <span className="font-medium text-foreground">
+                <span className="max-w-[220px] break-all text-right font-medium text-foreground sm:max-w-[340px]">
                   {walletAddress || "Not connected"}
                 </span>
               </div>
