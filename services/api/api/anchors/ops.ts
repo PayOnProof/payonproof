@@ -1,15 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../../lib/http.ts";
-import { loadAnchorDirectory } from "../../lib/stellar/anchor-directory.ts";
+import { readJsonBody } from "../../lib/http.js";
+import { loadAnchorDirectory } from "../../lib/stellar/anchor-directory.js";
 import {
   listActiveAnchors,
   setAnchorActive,
   updateAnchorCapabilities,
   upsertAnchorsCatalog,
-} from "../../lib/repositories/anchors-catalog.ts";
-import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities.ts";
-import { discoverAnchorsFromHorizon } from "../../lib/stellar/horizon.ts";
-import { evaluateAnchorTrust } from "../../lib/stellar/trust.ts";
+} from "../../lib/repositories/anchors-catalog.js";
+import { resolveAnchorCapabilities } from "../../lib/stellar/capabilities.js";
+import { discoverAnchorsFromHorizon } from "../../lib/stellar/horizon.js";
+import { evaluateAnchorTrust } from "../../lib/stellar/trust.js";
 
 type OpsAction = "import_directory" | "refresh_capabilities" | "sync";
 
@@ -39,6 +39,16 @@ function parseAllowedDomainsFromEnv(): string[] {
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function parseBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "0") return false;
+  }
+  return fallback;
 }
 
 function getQueryValue(req: VercelRequest, key: string): string | undefined {
@@ -234,9 +244,12 @@ async function handleImportDirectory(body: Record<string, unknown>, res: VercelR
   const bodyAllowedDomains = Array.isArray(body.allowedDomains)
     ? body.allowedDomains.filter((d): d is string => typeof d === "string")
     : [];
+  const useEnvAllowedDomains = parseBoolean(body.useEnvAllowedDomains, false);
+  const envAllowedDomains = useEnvAllowedDomains ? parseAllowedDomainsFromEnv() : [];
   const allowedDomains =
-    bodyAllowedDomains.length > 0 ? bodyAllowedDomains : parseAllowedDomainsFromEnv();
-  const requireAllowedDomains = strictDirectory && Boolean(downloadUrl);
+    bodyAllowedDomains.length > 0 ? bodyAllowedDomains : envAllowedDomains;
+  const requireAllowedDomains =
+    strictDirectory && Boolean(downloadUrl) && allowedDomains.length > 0;
 
   const loaded = await loadAnchorDirectory({
     downloadUrl,
@@ -306,7 +319,12 @@ async function refreshCapabilities(input: {
         sep6: resolved.sep.sep6,
         sep31: resolved.sep.sep31,
         sep10: resolved.sep.sep10,
-        operational: resolved.sep.sep24 || resolved.sep.sep6 || resolved.sep.sep31,
+        operational: Boolean(
+          resolved.sep.sep10 &&
+            resolved.sep.sep24 &&
+            resolved.endpoints.webAuthEndpoint &&
+            resolved.endpoints.transferServerSep24
+        ),
         feeFixed: resolved.fees.fixed,
         feePercent: resolved.fees.percent,
         feeSource: resolved.fees.source,
@@ -444,20 +462,23 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
     });
   }
 
-  const sourceUrl =
-    asString(body.sourceUrl) ||
-    getQueryValue(req, "sourceUrl") ||
-    process.env.STELLAR_ANCHOR_DIRECTORY_URL?.trim();
-  const directoryHome =
-    asString(body.directoryHome) ||
-    getQueryValue(req, "directoryHome") ||
-    process.env.STELLAR_ANCHOR_DIRECTORY_HOME?.trim() ||
-    DEFAULT_DIRECTORY_HOME;
   const discoveryMode =
     asString(body.mode) ||
     getQueryValue(req, "mode") ||
     process.env.ANCHOR_DISCOVERY_MODE?.trim() ||
     "directory";
+  const sourceUrlFromBody = asString(body.sourceUrl);
+  const sourceUrlFromQuery = getQueryValue(req, "sourceUrl");
+  const configuredSourceUrl = process.env.STELLAR_ANCHOR_DIRECTORY_URL?.trim() ?? "";
+  const sourceUrl =
+    sourceUrlFromBody ||
+    sourceUrlFromQuery ||
+    (discoveryMode === "directory" ? configuredSourceUrl : "");
+  const directoryHome =
+    asString(body.directoryHome) ||
+    getQueryValue(req, "directoryHome") ||
+    process.env.STELLAR_ANCHOR_DIRECTORY_HOME?.trim() ||
+    DEFAULT_DIRECTORY_HOME;
   const allowHorizonFallback =
     body.allowHorizon === true ||
     getQueryValue(req, "allowHorizon") === "true" ||
@@ -488,7 +509,10 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
     process.env.ANCHOR_SEP1_404_DISABLE_THRESHOLD,
     3
   );
-  const allowedDomains = parseAllowedDomainsFromEnv();
+  const useEnvAllowedDomains =
+    parseBoolean(body.useEnvAllowedDomains, false) ||
+    parseBoolean(getQueryValue(req, "useEnvAllowedDomains"), false);
+  const allowedDomains = useEnvAllowedDomains ? parseAllowedDomainsFromEnv() : [];
 
   let importResult: {
     source: string;
@@ -502,7 +526,7 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
       downloadUrl: sourceUrl,
       active: true,
       allowedDomains,
-      requireAllowedDomains: true,
+      requireAllowedDomains: allowedDomains.length > 0,
       requireDirectoryProvenance: true,
       rejectHorizonStrategy: true,
     });
@@ -559,6 +583,7 @@ async function handleSync(req: VercelRequest, body: Record<string, unknown>, res
     action: "sync",
     triggeredAt: new Date().toISOString(),
     sourceUrl: sourceUrl || null,
+    useEnvAllowedDomains,
     directoryHome,
     discoveryMode,
     allowHorizonFallback,
@@ -613,4 +638,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(502).json({ status: "error", action, error: message });
   }
 }
-

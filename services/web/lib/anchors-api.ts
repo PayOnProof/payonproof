@@ -1,17 +1,38 @@
 import { apiUrl } from "./api";
 import type { AnchorCountry, ProofOfPayment, RemittanceRoute } from "./types";
 
+async function readApiPayload<T>(response: Response, endpoint: string): Promise<T> {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  const raw = await response.text();
+  if (!raw) return {} as T;
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    const looksLikeHtml = raw.trimStart().startsWith("<");
+    if (looksLikeHtml || contentType.includes("text/html")) {
+      throw new Error(
+        `API ${endpoint} returned HTML instead of JSON. Check NEXT_PUBLIC_API_BASE_URL in Vercel.`
+      );
+    }
+    throw new Error(
+      `API ${endpoint} returned non-JSON response (${response.status}).`
+    );
+  }
+}
+
 export async function fetchAnchorCountries(): Promise<AnchorCountry[]> {
-  const response = await fetch(apiUrl("/api/anchors/countries"), {
+  const endpoint = apiUrl("/api/anchors/countries");
+  const response = await fetch(endpoint, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
   });
 
-  const payload = (await response.json()) as {
+  const payload = await readApiPayload<{
     countries?: AnchorCountry[];
     error?: string;
-  };
+  }>(response, endpoint);
 
   if (!response.ok) {
     throw new Error(payload.error || "Failed to fetch anchor countries");
@@ -25,17 +46,18 @@ export async function compareRoutes(params: {
   destination: string;
   amount: number;
 }): Promise<{ routes: RemittanceRoute[]; noRouteReason?: string }> {
-  const response = await fetch(apiUrl("/api/compare-routes"), {
+  const endpoint = apiUrl("/api/compare-routes");
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
 
-  const payload = (await response.json()) as {
+  const payload = await readApiPayload<{
     routes?: RemittanceRoute[];
     meta?: { noRouteReason?: string };
     error?: string;
-  };
+  }>(response, endpoint);
 
   if (!response.ok) {
     throw new Error(payload.error || "Failed to compare routes");
@@ -73,7 +95,8 @@ export async function prepareTransfer(params: {
   amount: number;
   senderAccount: string;
 }): Promise<PreparedTransfer> {
-  const response = await fetch(apiUrl("/api/execute-transfer"), {
+  const endpoint = apiUrl("/api/execute-transfer");
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -84,11 +107,11 @@ export async function prepareTransfer(params: {
     }),
   });
 
-  const payload = (await response.json()) as {
+  const payload = await readApiPayload<{
     status?: string;
     prepared?: PreparedTransfer;
     error?: string;
-  };
+  }>(response, endpoint);
 
   if (!response.ok || payload.status !== "needs_signature" || !payload.prepared) {
     throw new Error(payload.error || "Failed to prepare transfer");
@@ -127,7 +150,8 @@ export async function authorizeTransfer(params: {
       };
     };
 }> {
-  const response = await fetch(apiUrl("/api/execute-transfer"), {
+  const endpoint = apiUrl("/api/execute-transfer");
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -137,7 +161,7 @@ export async function authorizeTransfer(params: {
     }),
   });
 
-  const payload = (await response.json()) as {
+  const payload = await readApiPayload<{
     status?: string;
     transaction?: {
       id: string;
@@ -162,7 +186,7 @@ export async function authorizeTransfer(params: {
       };
     };
     error?: string;
-  };
+  }>(response, endpoint);
 
   if (!response.ok || payload.status !== "processing" || !payload.transaction) {
     throw new Error(payload.error || "Failed to authorize transfer");
@@ -182,16 +206,17 @@ export async function verifyProof(params: {
   exchangeRate: number;
   totalFees: number;
 }): Promise<ProofOfPayment> {
-  const response = await fetch(apiUrl("/api/generate-proof"), {
+  const endpoint = apiUrl("/api/generate-proof");
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
 
-  const payload = (await response.json()) as {
+  const payload = await readApiPayload<{
     proof?: ProofOfPayment;
     error?: string;
-  };
+  }>(response, endpoint);
 
   if (!response.ok || !payload.proof) {
     throw new Error(payload.error || "Failed to verify proof");
@@ -219,7 +244,8 @@ export async function pollTransferStatus(params: {
     error?: string;
   }>;
 }> {
-  const response = await fetch(apiUrl("/api/execute-transfer"), {
+  const endpoint = apiUrl("/api/execute-transfer");
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -229,7 +255,7 @@ export async function pollTransferStatus(params: {
     }),
   });
 
-  const payload = (await response.json()) as {
+  const payload = await readApiPayload<{
     status?: "ok";
     transactionId?: string;
     stellarTxHash?: string;
@@ -245,7 +271,7 @@ export async function pollTransferStatus(params: {
       error?: string;
     }>;
     error?: string;
-  };
+  }>(response, endpoint);
 
   if (!response.ok || payload.status !== "ok" || !payload.transactionId) {
     throw new Error(payload.error || "Failed to poll transfer status");

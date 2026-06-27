@@ -26,8 +26,8 @@ import { cn } from "@/lib/utils";
 interface RouteCardProps {
   route: RemittanceRoute;
   onSelect: (route: RemittanceRoute) => void;
-  originCurrency: string;
-  destinationCurrency: string;
+  selectable?: boolean;
+  selectionHint?: string;
   index?: number;
 }
 
@@ -52,8 +52,8 @@ const STATUS_CONFIG = {
 export function RouteCard({
   route,
   onSelect,
-  originCurrency,
-  destinationCurrency,
+  selectable = true,
+  selectionHint,
   index = 0,
 }: RouteCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -158,13 +158,13 @@ export function RouteCard({
                 icon={<Activity className="h-3.5 w-3.5" />}
                 label="Fee"
                 value={`${route.feePercentage}%`}
-                sublabel={`${route.feeAmount.toFixed(2)} ${originCurrency}`}
+                sublabel={`${route.feeAmount.toFixed(2)} ${route.originCurrency}`}
               />
               <MetricPill
                 icon={<TrendingUp className="h-3.5 w-3.5" />}
                 label="Rate"
                 value={`${route.exchangeRate}`}
-                sublabel={`${originCurrency}/${destinationCurrency}`}
+                sublabel={`${route.originCurrency}/${route.destinationCurrency}`}
               />
               {route.escrow && (
                 <div className="flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5">
@@ -186,13 +186,13 @@ export function RouteCard({
               <p className="text-3xl font-bold tabular-nums text-foreground lg:text-2xl">
                 {route.receivedAmount.toLocaleString()}
                 <span className="ml-1.5 text-sm font-medium text-muted-foreground">
-                  {destinationCurrency}
+                  {route.destinationCurrency}
                 </span>
               </p>
             </div>
             <Button
               onClick={() => onSelect(route)}
-              disabled={!route.available}
+              disabled={!route.available || !selectable}
               className={cn(
                 "w-full min-w-[130px] rounded-xl font-bold sm:w-auto",
                 "transition-all duration-200",
@@ -206,6 +206,14 @@ export function RouteCard({
               Select Route
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
+            {!route.available && (
+              <p className="text-xs text-destructive">Route unavailable</p>
+            )}
+            {route.available && !selectable && (
+              <p className="text-xs text-muted-foreground">
+                {selectionHint ?? "Not selectable in this mode"}
+              </p>
+            )}
           </div>
         </div>
 
@@ -268,7 +276,7 @@ export function RouteCard({
                         {route.feePercentage}%
                       </span>
                       <span className="ml-2 text-xs text-muted-foreground">
-                        ({route.feeAmount.toFixed(2)} {originCurrency})
+                        ({route.feeAmount.toFixed(2)} {route.originCurrency})
                       </span>
                     </div>
                   </div>

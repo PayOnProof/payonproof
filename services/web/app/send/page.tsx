@@ -93,6 +93,10 @@ function SendPageContent() {
   );
 
   const handleSelectRoute = useCallback((route: RemittanceRoute) => {
+    const isMoneyGramRoute =
+      route.originAnchor.name.toLowerCase().includes("moneygram") &&
+      route.destinationAnchor.name.toLowerCase().includes("moneygram");
+    if (!route.available || !isMoneyGramRoute) return;
     setSelectedRoute(route);
     setStep("execute");
   }, []);
@@ -194,9 +198,12 @@ function SendPageContent() {
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">
-                    {amount.toLocaleString()} {originCountry?.currencies?.[0] ?? "USD"}
+                    {amount.toLocaleString()}
                   </span>{" "}
                   from {originCountry?.name} to {destCountry?.name}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Asset can vary by route (see each row).
                 </p>
                 {searchError && (
                   <p className="mt-2 text-xs font-medium text-destructive">
@@ -292,7 +299,12 @@ function SendPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedRoutes.map((route) => (
+                    {sortedRoutes.map((route) => {
+                      const moneyGramOnly =
+                        route.originAnchor.name.toLowerCase().includes("moneygram") &&
+                        route.destinationAnchor.name.toLowerCase().includes("moneygram");
+                      const selectable = route.available && moneyGramOnly;
+                      return (
                       <tr
                         key={route.id}
                         className={cn(
@@ -321,7 +333,7 @@ function SendPageContent() {
                             {route.feePercentage}%
                           </span>
                           <span className="ml-1 text-xs text-muted-foreground">
-                            ({route.feeAmount.toFixed(1)})
+                            ({route.feeAmount.toFixed(1)} {route.originCurrency})
                           </span>
                         </td>
                         <td className="px-4 py-3 font-medium text-foreground">
@@ -335,7 +347,7 @@ function SendPageContent() {
                             {route.receivedAmount.toLocaleString()}
                           </span>
                           <span className="ml-1 text-xs text-muted-foreground">
-                            {destCountry?.currencies?.[0] ?? "USD"}
+                            {route.destinationCurrency}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -353,7 +365,7 @@ function SendPageContent() {
                           <Button
                             size="sm"
                             onClick={() => handleSelectRoute(route)}
-                            disabled={!route.available}
+                            disabled={!selectable}
                             className={cn(
                               "rounded-lg text-xs font-bold",
                               "transition-all duration-200",
@@ -364,11 +376,11 @@ function SendPageContent() {
                                 : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
                             )}
                           >
-                            Select
+                            {selectable ? "Select" : "Locked"}
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -382,8 +394,12 @@ function SendPageContent() {
                     key={route.id}
                     route={route}
                     onSelect={handleSelectRoute}
-                    originCurrency={originCountry?.currencies?.[0] || "USD"}
-                    destinationCurrency={destCountry?.currencies?.[0] || "USD"}
+                    selectable={
+                      route.available &&
+                      route.originAnchor.name.toLowerCase().includes("moneygram") &&
+                      route.destinationAnchor.name.toLowerCase().includes("moneygram")
+                    }
+                    selectionHint="Only MoneyGram routes are selectable right now"
                     index={i}
                   />
                 ))}

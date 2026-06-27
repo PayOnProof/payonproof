@@ -4,14 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types local-server.ts",
+    "dev": "npm run build:local && node .build/local-server.js",
+    "dev:ts": "node --experimental-strip-types local-server.ts",
     "dev:vercel": "vercel dev --yes --listen 3001 --local-config vercel.json",
+    "build:local": "tsc -p tsconfig.json --outDir .build --rootDir . --allowImportingTsExtensions false",
     "build": "echo \"Vercel builds serverless functions automatically\"",
     "typecheck": "tsc --noEmit",
     "anchors:import:file": "node scripts/import-anchor-file.mjs",
     "anchors:bootstrap": "node scripts/bootstrap-anchors.mjs",
     "anchors:export:directory": "node scripts/export-anchors-from-directory.mjs",
     "anchors:seed:import": "node scripts/import-anchor-seeds.mjs",
+    "anchors:seed:import:pop": "node scripts/import-anchor-seeds.mjs --file ./scripts/anchor-seeds.pop.json --api http://localhost:3001 --apply --refresh-limit 300",
     "anchors:auto:sync": "node scripts/auto-sync-anchors.mjs"
   },
   "dependencies": {

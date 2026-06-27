@@ -1,20 +1,45 @@
-import { resolveAnchorCapabilities } from "../../stellar/capabilities.ts";
-import { scoreRoutes } from "./scoring.ts";
+import { resolveAnchorCapabilities } from "../../stellar/capabilities.js";
+import { scoreRoutes } from "./scoring.js";
 import {
   getAnchorsForCorridor,
   updateAnchorCapabilities,
-} from "../../repositories/anchors-catalog.ts";
-import { getFxRate } from "./fx.ts";
+} from "../../repositories/anchors-catalog.js";
+import { getFxRate } from "./fx.js";
 import type {
   AnchorCatalogEntry,
   AnchorRuntime,
   CompareRoutesInput,
   RemittanceRoute,
-} from "./types.ts";
+} from "./types.js";
 
 const BRIDGE_FEE_PERCENT = 0.2;
 const CAPABILITY_REFRESH_MS = 10 * 60 * 1000;
 const FALLBACK_FEE_PERCENT = Number(process.env.ANCHOR_FALLBACK_FEE_PERCENT ?? 1.5);
+const MAX_ROUTES = Math.max(1, Math.min(12, Number(process.env.MAX_COMPARE_ROUTES ?? 12)));
+
+function matchesSepAssetKey(key: string, assetCode: string): boolean {
+  const normalizedKey = key.trim().toUpperCase();
+  const normalizedAsset = assetCode.trim().toUpperCase();
+  return (
+    normalizedKey === normalizedAsset ||
+    normalizedKey.startsWith(`${normalizedAsset}:`)
+  );
+}
+
+function isSep24AssetSupported(
+  sep24Info: unknown,
+  assetCode: string,
+  role: "origin" | "destination"
+): boolean {
+  if (!sep24Info || typeof sep24Info !== "object") return true;
+  const root = sep24Info as Record<string, unknown>;
+  const sectionName = role === "origin" ? "deposit" : "withdraw";
+  const section = root[sectionName];
+  if (!section || typeof section !== "object") return true;
+  const keys = Object.keys(section as Record<string, unknown>);
+  if (keys.length === 0) return true;
+  return keys.some((key) => matchesSepAssetKey(key, assetCode));
+}
 
 function resolveFeePercentForAmount(
   fee: AnchorRuntime["fees"],
@@ -83,7 +108,24 @@ async function resolveAnchorRuntime(anchor: AnchorCatalogEntry): Promise<AnchorR
       domain: anchor.domain,
       assetCode: anchor.currency,
     });
-    const operational = resolved.sep.sep24 || resolved.sep.sep6 || resolved.sep.sep31;
+    const sep24AssetSupported = isSep24AssetSupported(
+      resolved.raw?.sep24Info,
+      anchor.currency,
+      anchor.type === "on-ramp" ? "origin" : "destination"
+    );
+    if (!sep24AssetSupported) {
+      resolved.diagnostics.push(
+        `SEP-24 /info does not support asset ${anchor.currency} for ${anchor.type}`
+      );
+    }
+    // Production remittance flow requires SEP-10 auth + SEP-24 interactive flow.
+    const operational = Boolean(
+      resolved.sep.sep10 &&
+        resolved.sep.sep24 &&
+        sep24AssetSupported &&
+        resolved.endpoints.webAuthEndpoint &&
+        resolved.endpoints.transferServerSep24
+    );
 
     const runtime: AnchorRuntime = {
       catalog: anchor,
@@ -254,10 +296,16 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
 
   const runtimes = await Promise.all(anchors.map(resolveAnchorRuntime));
   const originAnchors = runtimes.filter(
-    (r) => r.catalog.type === "on-ramp" && r.catalog.country === input.origin
+    (r) =>
+      r.catalog.type === "on-ramp" &&
+      r.catalog.country === input.origin &&
+      r.operational
   );
   const destinationAnchors = runtimes.filter(
-    (r) => r.catalog.type === "off-ramp" && r.catalog.country === input.destination
+    (r) =>
+      r.catalog.type === "off-ramp" &&
+      r.catalog.country === input.destination &&
+      r.operational
   );
 
   let exchangeRate: number | undefined;
@@ -279,7 +327,7 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
     }
   }
 
-  const scored = scoreRoutes(routes);
+  const scored = scoreRoutes(routes).slice(0, MAX_ROUTES);
 
   return {
     routes: scored,

@@ -45,12 +45,31 @@ export async function signFreighterTransaction(input: {
   return response.signedTxXdr;
 }
 
+function resolveExpectedPassphrase(): {
+  passphrase: string;
+  envLabel: "staging" | "production";
+} {
+  const explicit = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE?.trim();
+  if (explicit) {
+    const envLabel =
+      explicit === "Test SDF Network ; September 2015" ? "staging" : "production";
+    return { passphrase: explicit, envLabel };
+  }
+  const popEnv = (process.env.NEXT_PUBLIC_POP_ENV ?? "staging").trim().toLowerCase();
+  if (popEnv === "production") {
+    return {
+      passphrase: "Public Global Stellar Network ; September 2015",
+      envLabel: "production",
+    };
+  }
+  return {
+    passphrase: "Test SDF Network ; September 2015",
+    envLabel: "staging",
+  };
+}
+
 export async function ensureFreighterMainnet(): Promise<void> {
-  const popEnv = (process.env.NEXT_PUBLIC_POP_ENV ?? "production").trim().toLowerCase();
-  const expectedPassphrase =
-    popEnv === "staging"
-      ? "Test SDF Network ; September 2015"
-      : "Public Global Stellar Network ; September 2015";
+  const expected = resolveExpectedPassphrase();
 
   const response = await getNetwork();
   if (response.error) {
@@ -58,11 +77,11 @@ export async function ensureFreighterMainnet(): Promise<void> {
   }
 
   const passphrase = response.networkPassphrase;
-  if (passphrase !== expectedPassphrase) {
+  if (passphrase !== expected.passphrase) {
     throw new Error(
-      popEnv === "staging"
-        ? "Freighter must be connected to Stellar Testnet."
-        : "Freighter must be connected to Stellar Mainnet."
+      expected.envLabel === "staging"
+        ? "Freighter must be connected to Stellar Testnet. Set NEXT_PUBLIC_POP_ENV=staging in web env if needed."
+        : "Freighter must be connected to Stellar Mainnet. Set NEXT_PUBLIC_POP_ENV=production in web env if needed."
     );
   }
 }

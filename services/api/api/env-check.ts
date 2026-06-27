@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { Keypair } from "@stellar/stellar-sdk";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -7,6 +8,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const url = process.env.SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const sep10ClientDomain = process.env.SEP10_CLIENT_DOMAIN ?? "";
+  const sep10SendClientDomain = process.env.SEP10_SEND_CLIENT_DOMAIN ?? "";
+  const sep10SendHomeDomain = process.env.SEP10_SEND_HOME_DOMAIN ?? "";
+  const sep10ClientDomainSigningSecret =
+    process.env.SEP10_CLIENT_DOMAIN_SIGNING_SECRET ?? "";
+  const webOrigin = process.env.WEB_ORIGIN ?? "";
+
+  let clientDomainSigningPublicKey: string | null = null;
+  if (sep10ClientDomainSigningSecret) {
+    try {
+      clientDomainSigningPublicKey = Keypair.fromSecret(
+        sep10ClientDomainSigningSecret.trim()
+      ).publicKey();
+    } catch {
+      clientDomainSigningPublicKey = "invalid_secret";
+    }
+  }
 
   return res.status(200).json({
     cwd: process.cwd(),
@@ -15,6 +33,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     hasSupabaseServiceRoleKey: Boolean(key),
     supabaseUrlPreview: url ? `${url.slice(0, 24)}...` : null,
     supabaseServiceRolePreview: key ? `${key.slice(0, 16)}...` : null,
+    webOrigin: webOrigin || null,
+    sep10: {
+      hasClientDomain: Boolean(sep10ClientDomain),
+      clientDomain: sep10ClientDomain || null,
+      sendClientDomain: sep10SendClientDomain || null,
+      sendHomeDomain: sep10SendHomeDomain || null,
+      hasClientDomainSigningSecret: Boolean(sep10ClientDomainSigningSecret),
+      clientDomainSigningPublicKey,
+    },
   });
 }
 

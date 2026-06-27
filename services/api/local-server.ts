@@ -35,6 +35,9 @@ loadLocalEnvFiles();
 
 const PORT = Number(process.env.PORT ?? 3001);
 const ALLOWED_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+const ROUTE_EXT =
+  process.env.LOCAL_SERVER_ROUTE_EXT?.trim() ||
+  (import.meta.url.endsWith(".js") ? ".js" : ".ts");
 
 function setCorsHeaders(res: ServerResponse) {
   res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
@@ -43,20 +46,20 @@ function setCorsHeaders(res: ServerResponse) {
 }
 
 const routeMap: Record<string, string> = {
-  "GET /api/health-local": "./api/health-local.ts",
-  "GET /api/health": "./api/health.ts",
-  "GET /api/env-check": "./api/env-check.ts",
-  "POST /api/compare-routes": "./api/compare-routes.ts",
-  "POST /api/execute-transfer": "./api/execute-transfer.ts",
-  "POST /api/generate-proof": "./api/generate-proof.ts",
-  "GET /api/test-db": "./api/test-db.ts",
-  "POST /api/anchors/diagnostics": "./api/anchors/diagnostics.ts",
-  "GET /api/anchors/ops": "./api/anchors/ops.ts",
-  "POST /api/anchors/ops": "./api/anchors/ops.ts",
-  "POST /api/anchors/sep24/callback": "./api/anchors/sep24/callback.ts",
-  "GET /api/anchors/sep24/callback": "./api/anchors/sep24/callback.ts",
-  "GET /api/anchors/countries": "./api/anchors/countries.ts",
-  "GET /api/anchors/catalog": "./api/anchors/catalog.ts",
+  "GET /api/health-local": `./api/health-local${ROUTE_EXT}`,
+  "GET /api/health": `./api/health${ROUTE_EXT}`,
+  "GET /api/env-check": `./api/env-check${ROUTE_EXT}`,
+  "POST /api/compare-routes": `./api/compare-routes${ROUTE_EXT}`,
+  "POST /api/execute-transfer": `./api/execute-transfer${ROUTE_EXT}`,
+  "POST /api/generate-proof": `./api/generate-proof${ROUTE_EXT}`,
+  "GET /api/test-db": `./api/test-db${ROUTE_EXT}`,
+  "POST /api/anchors/diagnostics": `./api/anchors/diagnostics${ROUTE_EXT}`,
+  "GET /api/anchors/ops": `./api/anchors/ops${ROUTE_EXT}`,
+  "POST /api/anchors/ops": `./api/anchors/ops${ROUTE_EXT}`,
+  "POST /api/anchors/sep24/callback": `./api/anchors/sep24/callback${ROUTE_EXT}`,
+  "GET /api/anchors/sep24/callback": `./api/anchors/sep24/callback${ROUTE_EXT}`,
+  "GET /api/anchors/countries": `./api/anchors/countries${ROUTE_EXT}`,
+  "GET /api/anchors/catalog": `./api/anchors/catalog${ROUTE_EXT}`,
 };
 
 async function readJson(req: IncomingMessage) {
@@ -123,12 +126,22 @@ const server = http.createServer(async (req, res) => {
   try {
     const mod = (await import(modulePath)) as HandlerModule;
     const body = await readJson(req);
+    const parsedUrl = new URL(req.url ?? "/", "http://localhost");
+    const query: Record<string, string | string[]> = {};
+    parsedUrl.searchParams.forEach((value, key) => {
+      const existing = query[key];
+      if (existing === undefined) {
+        query[key] = value;
+        return;
+      }
+      query[key] = Array.isArray(existing) ? [...existing, value] : [existing, value];
+    });
     const vReq = {
       method,
       url: req.url,
       headers: req.headers,
       body,
-      query: {},
+      query,
     };
     const vRes = createVercelResponse(res);
     await mod.default(vReq, vRes);

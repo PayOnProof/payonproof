@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getLatestLedgerSequence, getStellarConfig } from "../lib/stellar.ts";
+import { getLatestLedgerSequence, getStellarConfig } from "../lib/stellar.js";
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return await Promise.race([
@@ -33,8 +33,13 @@ export default async function handler(
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown Horizon error";
+    const message = (() => {
+      if (!(error instanceof Error)) return "Unknown Horizon error";
+      if (error.message?.trim()) return error.message;
+      const cause = (error as Error & { cause?: unknown }).cause;
+      if (cause instanceof Error && cause.message?.trim()) return cause.message;
+      return "Unknown Horizon error";
+    })();
 
     return res.status(503).json({
       status: "degraded",

@@ -1,4 +1,4 @@
-import { discoverAnchorFromDomain } from "./sep1.ts";
+import { discoverAnchorFromDomain } from "./sep1.js";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 

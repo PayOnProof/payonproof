@@ -61,12 +61,32 @@ export function TransactionExecution({
       });
 
       const signatures = {} as Record<"origin" | "destination", string>;
+      const signatureByChallenge = new Map<string, string>();
+      const signatureByAnchorContext = new Map<string, string>();
       for (const anchor of prepared.anchors) {
-        const signedTxXdr = await signFreighterTransaction({
-          transactionXdr: anchor.challengeXdr,
-          networkPassphrase: anchor.networkPassphrase,
-          address: walletAddress,
-        });
+        const anchorContextKey = [
+          anchor.webAuthEndpoint,
+          anchor.account,
+          anchor.networkPassphrase,
+        ].join("|");
+        const fromContext = signatureByAnchorContext.get(anchorContextKey);
+        if (fromContext) {
+          signatures[anchor.role] = fromContext;
+          continue;
+        }
+
+        const cached = signatureByChallenge.get(anchor.challengeXdr);
+        const signedTxXdr =
+          cached ??
+          (await signFreighterTransaction({
+            transactionXdr: anchor.challengeXdr,
+            networkPassphrase: anchor.networkPassphrase,
+            address: walletAddress,
+          }));
+        if (!cached) {
+          signatureByChallenge.set(anchor.challengeXdr, signedTxXdr);
+        }
+        signatureByAnchorContext.set(anchorContextKey, signedTxXdr);
         signatures[anchor.role] = signedTxXdr;
       }
 
@@ -187,9 +207,9 @@ export function TransactionExecution({
                   1 {route.originCurrency} = {route.exchangeRate} {route.destinationCurrency}
                 </span>
               </div>
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-3 flex items-start justify-between gap-3">
                 <span className="text-muted-foreground">Wallet</span>
-                <span className="font-medium text-foreground">
+                <span className="max-w-[220px] break-all text-right font-medium text-foreground sm:max-w-[340px]">
                   {walletAddress || "Not connected"}
                 </span>
               </div>

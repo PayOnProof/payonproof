@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readJsonBody } from "../lib/http.ts";
-import { getStellarConfig } from "../lib/stellar.ts";
+import { readJsonBody } from "../lib/http.js";
+import { getStellarConfig } from "../lib/stellar.js";
+import { applyCors, handleCorsPreflight } from "../lib/cors.js";
 
 /**
  * POST /api/generate-proof
@@ -37,10 +38,17 @@ async function verifyTransactionOnHorizon(hash: string): Promise<void> {
     hash
   )}`;
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message ? error.message : "network error";
+    throw new Error(`Horizon request failed (${endpoint}): ${message}`);
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -54,6 +62,9 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  if (handleCorsPreflight(req, res, ["POST", "OPTIONS"])) return;
+  applyCors(req, res, ["POST", "OPTIONS"]);
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
