@@ -609,7 +609,10 @@ async function startSep24Interactive(input: {
         "en";
     }
     // MoneyGram SEP-24 can reject non-numeric/custom memo values on interactive init.
-    if (input.memo && !isMoneyGramSep24) requestBody.memo = input.memo;
+    if (input.memo && !isMoneyGramSep24) {
+      requestBody.memo = input.memo;
+      requestBody.memo_type = "text";
+    }
     if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
 
     const transportAttempts: Array<{ contentType: string; body: string }> = [
@@ -646,6 +649,8 @@ async function startSep24Interactive(input: {
           requestBody.lang ? `,lang:${requestBody.lang}` : ""
         }${
           requestBody.memo ? `,memo:${requestBody.memo}` : ""
+        }${
+          requestBody.memo_type ? `,memo_type:${requestBody.memo_type}` : ""
         },content_type:${transport.contentType}}`;
         continue;
       }
