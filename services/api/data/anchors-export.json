@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-27T23:17:23.607Z",
+  "generatedAt": "2026-06-29T14:54:15.058Z",
   "source": "https://anchors.stellar.org/#verified-domains",
   "strategy": "directory-domain-sep",
   "homeUrl": "https://anchors.stellar.org/",
@@ -96,9 +96,9 @@
   ],
   "diagnostics": {
     "domainsTotal": 89,
-    "skippedNoSep": 23,
+    "skippedNoSep": 21,
     "skippedNoAssets": 0,
-    "failedToml": 59
+    "failedToml": 60
   },
   "anchors": [
     {
@@ -222,6 +222,54 @@
       "active": true
     },
     {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "ARS"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "PEN"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "ARS"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Grupo Anchor S.A.",
+      "domain": "home.anclap.com",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "PEN"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
       "name": "CLPX S.A.",
       "domain": "clpx.finance",
       "countries": [
@@ -361,6 +409,44 @@
       ],
       "currencies": [
         "BRL"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Anclap",
+      "domain": "home.anclap.com",
+      "countries": [
+        "AR",
+        "CL",
+        "CO",
+        "MX",
+        "PE"
+      ],
+      "currencies": [
+        "ARS",
+        "USD",
+        "USDC",
+        "XLM"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Anclap",
+      "domain": "home.anclap.com",
+      "countries": [
+        "AR",
+        "CL",
+        "CO",
+        "MX",
+        "PE"
+      ],
+      "currencies": [
+        "ARS",
+        "USD",
+        "USDC",
+        "XLM"
       ],
       "type": "off-ramp",
       "active": true
