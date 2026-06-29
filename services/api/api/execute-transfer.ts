@@ -907,12 +907,15 @@ function isMoneyGramUserIdRequired(): boolean {
   return raw === "true" || raw === "1";
 }
 
-function shouldSignClientDomainForAnchor(domain: string): boolean {
+function shouldSendClientDomainForAnchor(domain: string): boolean {
   return (
     isMoneyGramDomain(domain) ||
-    shouldRequireClientDomainSignature() ||
-    shouldSendSep10ClientDomain()
+    shouldRequireClientDomainSignature()
   );
+}
+
+function shouldSignClientDomainForAnchor(domain: string): boolean {
+  return shouldSendClientDomainForAnchor(domain);
 }
 
 function signClientDomainChallenge(input: {
@@ -1047,7 +1050,9 @@ async function prepareAnchorAuth(input: {
     // SEP-10 home_domain is the client (wallet) domain, not the anchor domain.
     homeDomain:
       isMoneyGram || shouldSendSep10HomeDomain() ? input.clientDomain : undefined,
-    clientDomain: input.clientDomain,
+    clientDomain: shouldSendClientDomainForAnchor(executionDomain)
+      ? input.clientDomain
+      : undefined,
   });
 
   return {
@@ -1137,14 +1142,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         isMoneyGramDomain(destinationAnchor.domain);
       const mustSendClientDomain =
         shouldSendSep10ClientDomain() || routeUsesMoneyGram;
-      if (mustSendClientDomain && !clientDomain) {
+      const originNeedsClientDomain = shouldSendClientDomainForAnchor(
+        originAnchor.domain
+      );
+      const destinationNeedsClientDomain = shouldSendClientDomainForAnchor(
+        destinationAnchor.domain
+      );
+      const needsClientDomain =
+        mustSendClientDomain ||
+        originNeedsClientDomain ||
+        destinationNeedsClientDomain;
+      if (needsClientDomain && !clientDomain) {
         return res.status(400).json({
           error:
             "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env.",
         });
       }
       if (
-        mustSendClientDomain &&
+        needsClientDomain &&
         getPopEnv() === "production" &&
         isLocalDomain(clientDomain)
       ) {
@@ -1154,9 +1169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       if (
-        mustSendClientDomain &&
-        (shouldSignClientDomainForAnchor(originAnchor.domain) ||
-          shouldSignClientDomainForAnchor(destinationAnchor.domain)) &&
+        (originNeedsClientDomain || destinationNeedsClientDomain) &&
         !getClientDomainSigningSecret()
       ) {
         return res.status(400).json({
@@ -1187,7 +1200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assetCode: originAssetCode,
           amount,
           account: senderAccount,
-          clientDomain: mustSendClientDomain
+          clientDomain: originNeedsClientDomain
             ? clientDomain
             : undefined,
         }),
@@ -1197,7 +1210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assetCode: destinationAssetCode,
           amount,
           account: senderAccount,
-          clientDomain: mustSendClientDomain
+          clientDomain: destinationNeedsClientDomain
             ? clientDomain
             : undefined,
         }),
