@@ -565,6 +565,15 @@ async function startSep24Interactive(input: {
       }
     })()
   );
+  const isSdfTestAnchorSep24 = /(^|\.)testanchor\.stellar\.org$/i.test(
+    (() => {
+      try {
+        return new URL(transferServer).hostname;
+      } catch {
+        return transferServer;
+      }
+    })()
+  );
   const attempts: Array<{ assetCode: string; assetIssuer?: string }> = [];
   if (isMoneyGramSep24 && input.assetCode.toUpperCase() === "USDC") {
     attempts.push({ assetCode: input.assetCode });
@@ -609,7 +618,7 @@ async function startSep24Interactive(input: {
         body: JSON.stringify(requestBody),
       },
     ];
-    if (!isMoneyGramSep24) {
+    if (!isMoneyGramSep24 && !isSdfTestAnchorSep24) {
       transportAttempts.push({
         contentType: "application/x-www-form-urlencoded",
         body: new URLSearchParams(requestBody).toString(),
