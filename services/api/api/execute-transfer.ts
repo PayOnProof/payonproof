@@ -608,8 +608,8 @@ async function startSep24Interactive(input: {
         process.env.SEP24_LANG?.trim() ||
         "en";
     }
-    // MoneyGram SEP-24 can reject non-numeric/custom memo values on interactive init.
-    if (input.memo && !isMoneyGramSep24) {
+    // MoneyGram and SDF test anchor can reject non-numeric/custom memo values on interactive init.
+    if (input.memo && !isMoneyGramSep24 && !isSdfTestAnchorSep24) {
       requestBody.memo = input.memo;
       requestBody.memo_type = "text";
     }
