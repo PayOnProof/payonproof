@@ -10,5 +10,11 @@
     "domain": "testanchor.stellar.org",
     "countries": ["US", "CR", "ZZ"],
     "currencies": ["USDC", "XLM", "SRT"]
+  },
+  {
+    "name": "OwlPay Harbor Stage",
+    "domain": "anchor-stage.owlpay.com",
+    "countries": ["US", "CR", "ZZ"],
+    "currencies": ["USDC"]
   }
 ]
