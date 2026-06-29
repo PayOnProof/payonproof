@@ -603,19 +603,16 @@ async function startSep24Interactive(input: {
     if (input.memo && !isMoneyGramSep24) requestBody.memo = input.memo;
     if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
 
-    // MoneyGram SEP-24 expects JSON payloads.
     const transportAttempts: Array<{ contentType: string; body: string }> = [
       {
         contentType: "application/json",
         body: JSON.stringify(requestBody),
       },
     ];
-    if (!isMoneyGramSep24) {
-      transportAttempts.push({
-        contentType: "application/x-www-form-urlencoded",
-        body: new URLSearchParams(requestBody).toString(),
-      });
-    }
+    transportAttempts.push({
+      contentType: "application/x-www-form-urlencoded",
+      body: new URLSearchParams(requestBody).toString(),
+    });
 
     for (const transport of transportAttempts) {
       const response = await fetch(endpoint, {
@@ -1190,8 +1187,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sep10TokenByChallenge = new Map<string, string>();
     const callbackToken = randomBytes(18).toString("hex");
     const callbackUrl = buildCallbackUrl(req, prepared.transactionId, callbackToken);
+    const hasMoneyGramDestinationWithdraw = prepared.anchors.some(
+      (anchor) => anchor.role === "destination" && isMoneyGramDomain(anchor.domain)
+    );
 
     for (const anchor of prepared.anchors) {
+      if (
+        anchor.role === "origin" &&
+        isMoneyGramDomain(anchor.domain) &&
+        hasMoneyGramDestinationWithdraw
+      ) {
+        continue;
+      }
+
       const signedChallengeXdr = asString(signatures[anchor.role]);
       if (!signedChallengeXdr) {
         return res.status(400).json({ error: `Missing signature for role '${anchor.role}'` });
