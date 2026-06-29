@@ -29,6 +29,7 @@ type ExecutePhase = "prepare" | "authorize" | "status";
 
 interface RoutePayload {
   id: string;
+  network?: "mainnet" | "testnet";
   originAnchor: { id: string; name?: string };
   destinationAnchor: { id: string; name?: string };
   originCurrency: string;
@@ -979,7 +980,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             "Selected route is not operational. Choose an available route (anchors with valid SEP-10/SEP-24).",
         });
       }
-      const anchors = await listActiveAnchors();
+      const routeNetwork =
+        route.network === "mainnet" || route.network === "testnet"
+          ? route.network
+          : undefined;
+      const anchors = await listActiveAnchors({ network: routeNetwork });
       const originAnchor = findAnchorById(anchors, asString(route.originAnchor?.id));
       const destinationAnchor = findAnchorById(
         anchors,

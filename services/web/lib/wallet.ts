@@ -45,31 +45,19 @@ export async function signFreighterTransaction(input: {
   return response.signedTxXdr;
 }
 
-function resolveExpectedPassphrase(): {
-  passphrase: string;
-  envLabel: "staging" | "production";
-} {
-  const explicit = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE?.trim();
-  if (explicit) {
-    const envLabel =
-      explicit === "Test SDF Network ; September 2015" ? "staging" : "production";
-    return { passphrase: explicit, envLabel };
+export type StellarWalletNetwork = "mainnet" | "testnet";
+
+function resolveExpectedPassphrase(network: StellarWalletNetwork): string {
+  if (network === "mainnet") {
+    return "Public Global Stellar Network ; September 2015";
   }
-  const popEnv = (process.env.NEXT_PUBLIC_POP_ENV ?? "staging").trim().toLowerCase();
-  if (popEnv === "production") {
-    return {
-      passphrase: "Public Global Stellar Network ; September 2015",
-      envLabel: "production",
-    };
-  }
-  return {
-    passphrase: "Test SDF Network ; September 2015",
-    envLabel: "staging",
-  };
+  return "Test SDF Network ; September 2015";
 }
 
-export async function ensureFreighterMainnet(): Promise<void> {
-  const expected = resolveExpectedPassphrase();
+export async function ensureFreighterNetwork(
+  network: StellarWalletNetwork
+): Promise<void> {
+  const expectedPassphrase = resolveExpectedPassphrase(network);
 
   const response = await getNetwork();
   if (response.error) {
@@ -77,11 +65,8 @@ export async function ensureFreighterMainnet(): Promise<void> {
   }
 
   const passphrase = response.networkPassphrase;
-  if (passphrase !== expected.passphrase) {
-    throw new Error(
-      expected.envLabel === "staging"
-        ? "Freighter must be connected to Stellar Testnet. Set NEXT_PUBLIC_POP_ENV=staging in web env if needed."
-        : "Freighter must be connected to Stellar Mainnet. Set NEXT_PUBLIC_POP_ENV=production in web env if needed."
-    );
+  if (passphrase !== expectedPassphrase) {
+    const expectedLabel = network === "mainnet" ? "Stellar Mainnet" : "Stellar Testnet";
+    throw new Error(`Freighter must be connected to ${expectedLabel} for this route.`);
   }
 }

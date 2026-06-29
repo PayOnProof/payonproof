@@ -1,5 +1,26 @@
 #!/usr/bin/env node
 
+async function loadLocalEnv() {
+  const { readFile } = await import("node:fs/promises");
+  const { resolve } = await import("node:path");
+  for (const file of [".env", ".env.local"]) {
+    try {
+      const raw = await readFile(resolve(file), "utf-8");
+      for (const rawLine of raw.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) continue;
+        const idx = line.indexOf("=");
+        if (idx <= 0) continue;
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (key && process.env[key] === undefined) process.env[key] = value;
+      }
+    } catch {
+      // Optional local env file.
+    }
+  }
+}
+
 function parseArgs(argv) {
   const options = {
     api: "http://localhost:3001",
@@ -38,9 +59,13 @@ function parseArgs(argv) {
 }
 
 async function postJson(url, body) {
+  const adminSecret = process.env.ADMIN_SECRET?.trim();
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(adminSecret ? { "x-admin-secret": adminSecret } : {}),
+    },
     body: JSON.stringify(body),
   });
   const payload = await response.json();
@@ -68,6 +93,7 @@ async function loadAnchorsFromFile(filePath) {
 }
 
 async function main() {
+  await loadLocalEnv();
   const options = parseArgs(process.argv.slice(2));
   const api = options.api.replace(/\/+$/, "");
   const downloadUrl =

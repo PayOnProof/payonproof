@@ -1,5 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getLatestLedgerSequence, getStellarConfig } from "../lib/stellar.js";
+import {
+  getLatestLedgerSequence,
+  getStellarConfig,
+  getStellarNetwork,
+} from "../lib/stellar.js";
+import { getSupabaseAdmin } from "../lib/supabase.js";
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return await Promise.race([
@@ -15,45 +20,69 @@ export default async function handler(
   res: VercelResponse
 ) {
   const { horizonUrl } = getStellarConfig();
+  const checks = {
+    stellar: "unknown",
+    supabase: "unknown",
+    anchors: "unknown",
+  };
+  const errors: Record<string, string> = {};
+  let latestLedger: number | undefined;
+  let anchorCount: number | null = null;
 
   try {
-    const ledger = await withTimeout(getLatestLedgerSequence(), 5000);
+    latestLedger = await withTimeout(getLatestLedgerSequence(), 5000);
+    checks.stellar = "ok";
+  } catch (error) {
+    checks.stellar = "error";
+    errors.stellar = error instanceof Error ? error.message : "Unknown Horizon error";
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const { count, error } = await supabase
+      .from("anchors_catalog")
+      .select("id", { count: "exact" })
+      .eq("network", getStellarNetwork())
+      .limit(1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    checks.supabase = "ok";
+    checks.anchors = "ok";
+    anchorCount = count;
+  } catch (error) {
+    checks.supabase = "error";
+    checks.anchors = "error";
+    errors.supabase = error instanceof Error ? error.message : "Unknown Supabase error";
+  }
+
+  if (checks.stellar === "ok" && checks.supabase === "ok" && checks.anchors === "ok") {
     return res.status(200).json({
       status: "ok",
       version: "0.1.0",
       timestamp: new Date().toISOString(),
-      services: {
-        stellar: "ok",
-        supabase: "placeholder",
-        anchors: "placeholder",
-      },
+      services: checks,
       stellar: {
         horizonUrl,
-        latestLedger: ledger,
+        network: getStellarNetwork(),
+        latestLedger,
       },
-    });
-  } catch (error) {
-    const message = (() => {
-      if (!(error instanceof Error)) return "Unknown Horizon error";
-      if (error.message?.trim()) return error.message;
-      const cause = (error as Error & { cause?: unknown }).cause;
-      if (cause instanceof Error && cause.message?.trim()) return cause.message;
-      return "Unknown Horizon error";
-    })();
-
-    return res.status(503).json({
-      status: "degraded",
-      version: "0.1.0",
-      timestamp: new Date().toISOString(),
-      services: {
-        stellar: "error",
-        supabase: "placeholder",
-        anchors: "placeholder",
-      },
-      stellar: {
-        horizonUrl,
-        error: message,
-      },
+      anchors: { count: anchorCount },
     });
   }
+
+  return res.status(503).json({
+    status: "degraded",
+    version: "0.1.0",
+    timestamp: new Date().toISOString(),
+    services: checks,
+    stellar: {
+      horizonUrl,
+      network: getStellarNetwork(),
+      latestLedger,
+    },
+    anchors: { count: anchorCount },
+    errors,
+  });
 }

@@ -3,11 +3,13 @@ import type { AnchorCatalogEntry } from "../remittances/compare/types.js";
 import type { AnchorCatalogImportRow } from "../stellar/anchor-directory.js";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { getStellarNetwork, type StellarNetwork } from "../stellar.js";
 
 interface AnchorCatalogRow {
   id: string;
   name: string;
   domain: string;
+  network?: StellarNetwork | null;
   country: string;
   currency: string;
   type: "on-ramp" | "off-ramp";
@@ -59,6 +61,22 @@ interface LocalAnchorExportFile {
   }>;
 }
 
+function formatSupabaseError(error: {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+}): string {
+  return [
+    error.message,
+    error.details,
+    error.hint ? `hint: ${error.hint}` : "",
+    error.code ? `code: ${error.code}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
 let localFallbackCache: AnchorCatalogEntry[] | null = null;
 
 const KNOWN_DOMAIN_COUNTRY: Record<string, string> = {
@@ -71,7 +89,15 @@ const KNOWN_DOMAIN_COUNTRY: Record<string, string> = {
   "owlpay.com": "PH",
 };
 
-const DEFAULT_ALLOWED_ASSETS = ["USDC", "XLM"] as const;
+const DEFAULT_ALLOWED_ASSETS = [
+  "USDC",
+  "XLM",
+  "EURC",
+  "CLPX",
+  "ARS",
+  "PEN",
+  "BRL",
+] as const;
 
 function normalizeAssetCode(value: string): string {
   const code = value.trim().toUpperCase();
@@ -124,6 +150,11 @@ function filterAnchors(anchors: AnchorCatalogEntry[]): AnchorCatalogEntry[] {
   return anchors.filter(isAnchorAllowed);
 }
 
+function localFallbackEnabled(): boolean {
+  const value = process.env.ANCHOR_CATALOG_FALLBACK?.trim().toLowerCase() ?? "";
+  return value === "local" || value === "true" || value === "1";
+}
+
 function normalizeIso2(value: string): string {
   const code = value.trim().toUpperCase();
   return /^[A-Z]{2}$/.test(code) ? code : "";
@@ -173,9 +204,11 @@ function mapCatalogRow(row: AnchorCatalogRow): AnchorCatalogEntry {
     id: row.id,
     name: row.name,
     domain: row.domain,
+    network: row.network ?? getStellarNetwork(),
     country,
     currency: row.currency,
     type: row.type,
+    active: row.active,
     capabilities: {
       sep24: Boolean(row.sep24),
       sep6: Boolean(row.sep6),
@@ -243,6 +276,7 @@ function loadLocalFallbackAnchors(): AnchorCatalogEntry[] {
           country: normalizedCountry,
           currency,
           type,
+          active,
           capabilities: {
             sep24: false,
             sep6: false,
@@ -262,26 +296,38 @@ function loadLocalFallbackAnchors(): AnchorCatalogEntry[] {
 export async function getAnchorsForCorridor(input: {
   origin: string;
   destination: string;
+  network?: StellarNetwork | "all";
 }): Promise<AnchorCatalogEntry[]> {
   try {
     const supabase = getSupabaseAdmin();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("anchors_catalog")
       .select(
-        "id,name,domain,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
+        "id,name,domain,network,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
       )
       .eq("active", true)
       .in("country", [input.origin, input.destination])
       .in("type", ["on-ramp", "off-ramp"]);
 
+    if (input.network === "mainnet" || input.network === "testnet") {
+      query = query.eq("network", input.network);
+    } else if (input.network !== "all") {
+      query = query.eq("network", getStellarNetwork());
+    }
+
+    const { data, error } = await query;
+
     if (error) {
-      throw new Error(`anchors_catalog query failed: ${error.message}`);
+      throw new Error(`anchors_catalog query failed: ${formatSupabaseError(error)}`);
     }
 
     const rows = (data ?? []) as AnchorCatalogRow[];
     return filterAnchors(rows.map(mapCatalogRow));
-  } catch {
+  } catch (error) {
+    if (!localFallbackEnabled()) {
+      throw error;
+    }
     const fallback = loadLocalFallbackAnchors();
     return filterAnchors(
       fallback.filter(
@@ -298,17 +344,25 @@ export async function upsertAnchorsCatalog(
   if (rows.length === 0) return 0;
 
   const supabase = getSupabaseAdmin();
+  const network = getStellarNetwork();
   const chunkSize = 500;
   let total = 0;
 
   for (let index = 0; index < rows.length; index += chunkSize) {
-    const chunk = rows.slice(index, index + chunkSize);
+    const chunk = rows.slice(index, index + chunkSize).map((row) => ({
+      ...row,
+      network,
+      id:
+        network === "testnet" && !row.id.startsWith("testnet-")
+          ? `testnet-${row.id}`
+          : row.id,
+    }));
     const { error } = await supabase
       .from("anchors_catalog")
       .upsert(chunk, { onConflict: "id" });
 
     if (error) {
-      throw new Error(`anchors_catalog upsert failed: ${error.message}`);
+      throw new Error(`anchors_catalog upsert failed: ${formatSupabaseError(error)}`);
     }
 
     total += chunk.length;
@@ -317,26 +371,76 @@ export async function upsertAnchorsCatalog(
   return total;
 }
 
-export async function listActiveAnchors(): Promise<AnchorCatalogEntry[]> {
+export async function listActiveAnchors(input?: {
+  network?: StellarNetwork | "all";
+}): Promise<AnchorCatalogEntry[]> {
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("anchors_catalog")
       .select(
-        "id,name,domain,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
+        "id,name,domain,network,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
       )
       .eq("active", true)
       .order("country", { ascending: true })
       .order("name", { ascending: true });
 
+    if (input?.network === "mainnet" || input?.network === "testnet") {
+      query = query.eq("network", input.network);
+    } else if (input?.network !== "all") {
+      query = query.eq("network", getStellarNetwork());
+    }
+
+    const { data, error } = await query;
+
     if (error) {
-      throw new Error(`anchors_catalog list failed: ${error.message}`);
+      throw new Error(`anchors_catalog list failed: ${formatSupabaseError(error)}`);
     }
 
     const rows = (data ?? []) as AnchorCatalogRow[];
     return filterAnchors(rows.map(mapCatalogRow));
-  } catch {
+  } catch (error) {
+    if (!localFallbackEnabled()) {
+      throw error;
+    }
     return filterAnchors(loadLocalFallbackAnchors());
+  }
+}
+
+export async function listAnchors(input?: {
+  includeInactive?: boolean;
+  includeAllNetworks?: boolean;
+}): Promise<AnchorCatalogEntry[]> {
+  try {
+    const supabase = getSupabaseAdmin();
+    let query = supabase
+      .from("anchors_catalog")
+      .select(
+        "id,name,domain,network,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
+      )
+      .order("country", { ascending: true })
+      .order("name", { ascending: true });
+
+    if (!input?.includeAllNetworks) {
+      query = query.eq("network", getStellarNetwork());
+    }
+
+    if (!input?.includeInactive) {
+      query = query.eq("active", true);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`anchors_catalog list failed: ${formatSupabaseError(error)}`);
+    }
+
+    const rows = (data ?? []) as AnchorCatalogRow[];
+    return rows.map(mapCatalogRow);
+  } catch (error) {
+    if (!localFallbackEnabled()) {
+      throw error;
+    }
+    return loadLocalFallbackAnchors();
   }
 }
 
@@ -367,7 +471,7 @@ export async function updateAnchorCapabilities(
     .eq("id", input.id);
 
   if (error) {
-    throw new Error(`anchors_catalog capability update failed: ${error.message}`);
+    throw new Error(`anchors_catalog capability update failed: ${formatSupabaseError(error)}`);
   }
 }
 
@@ -385,6 +489,15 @@ export async function setAnchorActive(input: {
     .eq("id", input.id);
 
   if (error) {
-    throw new Error(`anchors_catalog active update failed: ${error.message}`);
+    throw new Error(`anchors_catalog active update failed: ${formatSupabaseError(error)}`);
+  }
+}
+
+export async function deleteAnchor(id: string): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("anchors_catalog").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(`anchors_catalog delete failed: ${formatSupabaseError(error)}`);
   }
 }

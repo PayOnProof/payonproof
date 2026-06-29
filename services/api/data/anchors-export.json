@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-25T17:21:45.044Z",
+  "generatedAt": "2026-06-29T15:02:00.724Z",
   "source": "https://anchors.stellar.org/#verified-domains",
   "strategy": "directory-domain-sep",
   "homeUrl": "https://anchors.stellar.org/",
@@ -96,7 +96,7 @@
   ],
   "diagnostics": {
     "domainsTotal": 89,
-    "skippedNoSep": 22,
+    "skippedNoSep": 20,
     "skippedNoAssets": 0,
     "failedToml": 61
   },
@@ -174,6 +174,54 @@
       "active": true
     },
     {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
       "name": "Grupo Anchor S.A.",
       "domain": "home.anclap.com",
       "countries": [
@@ -289,6 +337,54 @@
       ],
       "currencies": [
         "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "mint.zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "mint.zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "mint.zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "USDC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "ZEAM LIMITED",
+      "domain": "mint.zeam.money",
+      "countries": [
+        "ZZ"
+      ],
+      "currencies": [
+        "NATIVE"
       ],
       "type": "off-ramp",
       "active": true
@@ -829,6 +925,40 @@
       "currencies": [
         "EUR",
         "EURC"
+      ],
+      "type": "off-ramp",
+      "active": true
+    },
+    {
+      "name": "Zeam",
+      "domain": "mint.zeam.money",
+      "countries": [
+        "CD",
+        "MW",
+        "ZA",
+        "ZM",
+        "ZW"
+      ],
+      "currencies": [
+        "USDC",
+        "XLM"
+      ],
+      "type": "on-ramp",
+      "active": true
+    },
+    {
+      "name": "Zeam",
+      "domain": "mint.zeam.money",
+      "countries": [
+        "CD",
+        "MW",
+        "ZA",
+        "ZM",
+        "ZW"
+      ],
+      "currencies": [
+        "USDC",
+        "XLM"
       ],
       "type": "off-ramp",
       "active": true

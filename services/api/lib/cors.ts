@@ -26,11 +26,13 @@ export function applyCors(
   res: VercelResponse,
   methods: string[]
 ): void {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", resolveOrigin(req));
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", methods.join(","));
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With"
+    "Content-Type, Authorization, X-Requested-With, X-Admin-Secret, X-Cron-Secret"
   );
   res.setHeader("Access-Control-Max-Age", "600");
 }

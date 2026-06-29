@@ -1,6 +1,7 @@
 export interface Anchor {
   id: string;
   name: string;
+  network: "mainnet" | "testnet";
   country: string;
   currency: string;
   type: "on-ramp" | "off-ramp";
@@ -10,6 +11,7 @@ export interface Anchor {
 
 export interface RemittanceRoute {
   id: string;
+  network: "mainnet" | "testnet";
   originAnchor: Anchor;
   destinationAnchor: Anchor;
   originCountry: string;
@@ -62,7 +64,7 @@ export interface Transaction {
   senderAccount?: string;
   statusRef?: string;
   callbackUrl?: string;
-  popEnv?: "production" | "staging";
+  popEnv?: "production" | "staging" | "testnet";
   anchorFlows?: {
     originDeposit?: {
       id?: string;

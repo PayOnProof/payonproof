@@ -5,6 +5,25 @@ import path from "node:path";
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
+async function loadLocalEnv() {
+  for (const file of [".env", ".env.local"]) {
+    try {
+      const raw = await fs.readFile(path.resolve(file), "utf-8");
+      for (const rawLine of raw.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) continue;
+        const idx = line.indexOf("=");
+        if (idx <= 0) continue;
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (key && process.env[key] === undefined) process.env[key] = value;
+      }
+    } catch {
+      // Optional local env file.
+    }
+  }
+}
+
 function parseArgs(argv) {
   const options = {
     file: "",
@@ -247,9 +266,13 @@ async function discoverSeed(seed) {
 }
 
 async function postJson(url, body) {
+  const adminSecret = process.env.ADMIN_SECRET?.trim();
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(adminSecret ? { "x-admin-secret": adminSecret } : {}),
+    },
     body: JSON.stringify(body),
   });
   const payload = await res.json();
@@ -260,6 +283,7 @@ async function postJson(url, body) {
 }
 
 async function main() {
+  await loadLocalEnv();
   const options = parseArgs(process.argv.slice(2));
   if (!options.file) {
     throw new Error(

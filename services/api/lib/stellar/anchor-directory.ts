@@ -4,6 +4,7 @@ export interface AnchorCatalogImportRow {
   id: string;
   name: string;
   domain: string;
+  network?: "mainnet" | "testnet";
   country: string;
   currency: string;
   type: AnchorRampType;

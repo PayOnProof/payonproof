@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 import type { RemittanceRoute, Transaction } from "@/lib/types";
 import { authorizeTransfer, prepareTransfer } from "@/lib/anchors-api";
-import { ensureFreighterMainnet, signFreighterTransaction } from "@/lib/wallet";
+import { ensureFreighterNetwork, signFreighterTransaction } from "@/lib/wallet";
 import { useWallet } from "@/lib/wallet-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function TransactionExecution({
       if (status !== "connected" || walletType !== "freighter" || !walletAddress) {
         throw new Error("Connect Freighter wallet before executing a real transfer.");
       }
-      await ensureFreighterMainnet();
+      await ensureFreighterNetwork(route.network);
 
       const prepared = await prepareTransfer({
         route,

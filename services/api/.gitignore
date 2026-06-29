@@ -1,2 +1,5 @@
 .vercel
+.build
+.env
 .env*.local
+.admin-login.local.txt
