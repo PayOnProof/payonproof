@@ -102,6 +102,20 @@ export interface PreparedTransfer {
   };
 }
 
+export interface PreparedWithdrawalPayment {
+  role: "destination";
+  anchorName: string;
+  network: "mainnet" | "testnet";
+  networkPassphrase: string;
+  transactionXdr: string;
+  amount: string;
+  assetCode: string;
+  assetIssuer?: string;
+  destination: string;
+  memo?: string;
+  memoType?: string;
+}
+
 export async function prepareTransfer(params: {
   route: RemittanceRoute;
   amount: number;
@@ -161,6 +175,7 @@ export async function authorizeTransfer(params: {
           anchorName?: string;
         };
       };
+      withdrawalPayment?: PreparedWithdrawalPayment;
     };
 }> {
   const endpoint = apiUrl("/api/execute-transfer");
@@ -198,6 +213,7 @@ export async function authorizeTransfer(params: {
           anchorName?: string;
         };
       };
+      withdrawalPayment?: PreparedWithdrawalPayment;
     };
     error?: string;
   }>(response, endpoint);
@@ -207,6 +223,36 @@ export async function authorizeTransfer(params: {
   }
 
   return { transaction: payload.transaction };
+}
+
+export async function submitWithdrawalPayment(params: {
+  signedXdr: string;
+  network: "mainnet" | "testnet";
+  networkPassphrase: string;
+}): Promise<{ hash: string }> {
+  const endpoint = apiUrl("/api/execute-transfer");
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      phase: "submit_withdrawal",
+      signedXdr: params.signedXdr,
+      network: params.network,
+      networkPassphrase: params.networkPassphrase,
+    }),
+  });
+
+  const payload = await readApiPayload<{
+    status?: string;
+    hash?: string;
+    error?: string;
+  }>(response, endpoint);
+
+  if (!response.ok || payload.status !== "submitted" || !payload.hash) {
+    throw new Error(payload.error || "Failed to submit withdrawal payment");
+  }
+
+  return { hash: payload.hash };
 }
 
 export async function verifyProof(params: {

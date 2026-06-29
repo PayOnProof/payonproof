@@ -3,7 +3,11 @@
 import { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 import type { RemittanceRoute, Transaction } from "@/lib/types";
-import { authorizeTransfer, prepareTransfer } from "@/lib/anchors-api";
+import {
+  authorizeTransfer,
+  prepareTransfer,
+  submitWithdrawalPayment,
+} from "@/lib/anchors-api";
 import { ensureFreighterNetwork, signFreighterTransaction } from "@/lib/wallet";
 import { useWallet } from "@/lib/wallet-context";
 import { Card } from "@/components/ui/card";
@@ -102,6 +106,19 @@ export function TransactionExecution({
         signatures,
         trustlineSignature,
       });
+      const withdrawalPayment = authorized.transaction.withdrawalPayment;
+      if (withdrawalPayment) {
+        const signedWithdrawalXdr = await signFreighterTransaction({
+          transactionXdr: withdrawalPayment.transactionXdr,
+          networkPassphrase: withdrawalPayment.networkPassphrase,
+          address: walletAddress,
+        });
+        await submitWithdrawalPayment({
+          signedXdr: signedWithdrawalXdr,
+          network: withdrawalPayment.network,
+          networkPassphrase: withdrawalPayment.networkPassphrase,
+        });
+      }
 
       const tx: Transaction = {
         id: authorized.transaction.id,

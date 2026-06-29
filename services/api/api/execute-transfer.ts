@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { Asset, Horizon, Keypair, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
+import { Asset, Horizon, Keypair, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { readJsonBody } from "../lib/http.js";
 import { listActiveAnchors } from "../lib/repositories/anchors-catalog.js";
 import { getAnchorCallbackEvent } from "../lib/repositories/anchor-events.js";
@@ -25,7 +25,7 @@ import { applyCors, handleCorsPreflight } from "../lib/cors.js";
  *   Polls SEP-24 status without exposing anchor JWTs to the frontend.
  */
 
-type ExecutePhase = "prepare" | "authorize" | "status";
+type ExecutePhase = "prepare" | "authorize" | "status" | "submit_withdrawal";
 
 interface RoutePayload {
   id: string;
@@ -71,6 +71,20 @@ interface PreparedTrustline {
   transactionXdr: string;
 }
 
+interface PreparedWithdrawalPayment {
+  role: "destination";
+  anchorName: string;
+  network: "mainnet" | "testnet";
+  networkPassphrase: string;
+  transactionXdr: string;
+  amount: string;
+  assetCode: string;
+  assetIssuer?: string;
+  destination: string;
+  memo?: string;
+  memoType?: string;
+}
+
 interface Sep24StatusHandle {
   transferServerSep24: string;
   token: string;
@@ -95,6 +109,7 @@ type StatusPollResult =
       status?: string;
       stellarTxHash?: string;
       externalTransactionId?: string;
+      withdrawalPayment?: PreparedWithdrawalPayment;
     }
   | {
       role: "origin" | "destination";
@@ -222,6 +237,101 @@ async function submitSignedTransaction(input: {
   const tx = TransactionBuilder.fromXDR(input.signedXdr, input.networkPassphrase);
   const server = horizonServerForNetwork(input.network);
   return server.submitTransaction(tx);
+}
+
+function normalizeStellarAmount(value: unknown): string | undefined {
+  const raw =
+    typeof value === "number"
+      ? String(value)
+      : typeof value === "string"
+      ? value.trim()
+      : "";
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed
+    .toFixed(7)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
+}
+
+function memoFromSep24(memo?: string, memoType?: string) {
+  if (!memo) return undefined;
+  const normalizedType = (memoType || "").trim().toLowerCase();
+  if (normalizedType === "id" || (!normalizedType && /^\d+$/.test(memo))) {
+    return Memo.id(memo);
+  }
+  if (normalizedType === "hash") {
+    return Memo.hash(memo);
+  }
+  if (normalizedType === "return") {
+    return Memo.return(memo);
+  }
+  return Memo.text(memo.slice(0, 28));
+}
+
+async function prepareWithdrawalPayment(input: {
+  account: string;
+  anchorName: string;
+  network?: "mainnet" | "testnet";
+  networkPassphrase: string;
+  assetCode: string;
+  assetIssuer?: string;
+  status: {
+    withdrawAnchorAccount?: string;
+    withdrawMemo?: string;
+    withdrawMemoType?: string;
+    amountIn?: string;
+  };
+}): Promise<PreparedWithdrawalPayment | undefined> {
+  const network = input.network === "mainnet" ? "mainnet" : "testnet";
+  const destination = asString(input.status.withdrawAnchorAccount);
+  const amount = normalizeStellarAmount(input.status.amountIn);
+  if (!destination || !amount) return undefined;
+
+  const assetCode = input.assetCode.trim().toUpperCase();
+  const asset =
+    assetCode === "XLM"
+      ? Asset.native()
+      : input.assetIssuer
+      ? new Asset(assetCode, input.assetIssuer)
+      : undefined;
+  if (!asset) {
+    throw new Error(
+      `Cannot prepare withdrawal payment for ${assetCode}; missing asset issuer from anchor metadata.`
+    );
+  }
+
+  const server = horizonServerForNetwork(network);
+  const sourceAccount = await server.loadAccount(input.account);
+  const builder = new TransactionBuilder(sourceAccount, {
+    fee: "100",
+    networkPassphrase: input.networkPassphrase,
+  }).addOperation(
+    Operation.payment({
+      destination,
+      asset,
+      amount,
+    })
+  );
+
+  const memo = memoFromSep24(input.status.withdrawMemo, input.status.withdrawMemoType);
+  if (memo) builder.addMemo(memo);
+
+  const transaction = builder.setTimeout(300).build();
+  return {
+    role: "destination",
+    anchorName: input.anchorName,
+    network,
+    networkPassphrase: input.networkPassphrase,
+    transactionXdr: transaction.toEnvelope().toXDR("base64"),
+    amount,
+    assetCode,
+    assetIssuer: input.assetIssuer,
+    destination,
+    memo: input.status.withdrawMemo,
+    memoType: input.status.withdrawMemoType,
+  };
 }
 
 function resolveAnchorDomainForExecution(domain: string): string {
@@ -784,6 +894,10 @@ async function fetchSep24TransactionStatus(
   status?: string;
   stellarTxHash?: string;
   externalTransactionId?: string;
+  withdrawAnchorAccount?: string;
+  withdrawMemo?: string;
+  withdrawMemoType?: string;
+  amountIn?: string;
 }> {
   const transferServer = normalizeBaseUrl(handle.transferServerSep24);
   const endpoint = `${transferServer}/transaction?id=${encodeURIComponent(
@@ -835,10 +949,48 @@ async function fetchSep24TransactionStatus(
       ? tx.externalTransactionId
       : undefined;
 
+  const withdrawAnchorAccount =
+    typeof tx.withdraw_anchor_account === "string"
+      ? tx.withdraw_anchor_account
+      : typeof tx.withdrawAnchorAccount === "string"
+      ? tx.withdrawAnchorAccount
+      : typeof tx.to === "string"
+      ? tx.to
+      : undefined;
+
+  const withdrawMemo =
+    typeof tx.withdraw_memo === "string"
+      ? tx.withdraw_memo
+      : typeof tx.withdrawMemo === "string"
+      ? tx.withdrawMemo
+      : typeof tx.memo === "string"
+      ? tx.memo
+      : undefined;
+
+  const withdrawMemoType =
+    typeof tx.withdraw_memo_type === "string"
+      ? tx.withdraw_memo_type
+      : typeof tx.withdrawMemoType === "string"
+      ? tx.withdrawMemoType
+      : typeof tx.memo_type === "string"
+      ? tx.memo_type
+      : undefined;
+
+  const amountIn =
+    normalizeStellarAmount(tx.amount_in) ||
+    normalizeStellarAmount(tx.amountIn) ||
+    normalizeStellarAmount(tx.amount_expected) ||
+    normalizeStellarAmount(tx.amountExpected) ||
+    normalizeStellarAmount(tx.amount);
+
   return {
     status,
     stellarTxHash,
     externalTransactionId,
+    withdrawAnchorAccount,
+    withdrawMemo,
+    withdrawMemoType,
+    amountIn,
   };
 }
 
@@ -907,12 +1059,15 @@ function isMoneyGramUserIdRequired(): boolean {
   return raw === "true" || raw === "1";
 }
 
-function shouldSignClientDomainForAnchor(domain: string): boolean {
+function shouldSendClientDomainForAnchor(domain: string): boolean {
   return (
     isMoneyGramDomain(domain) ||
-    shouldRequireClientDomainSignature() ||
-    shouldSendSep10ClientDomain()
+    shouldRequireClientDomainSignature()
   );
+}
+
+function shouldSignClientDomainForAnchor(domain: string): boolean {
+  return shouldSendClientDomainForAnchor(domain);
 }
 
 function signClientDomainChallenge(input: {
@@ -1047,7 +1202,9 @@ async function prepareAnchorAuth(input: {
     // SEP-10 home_domain is the client (wallet) domain, not the anchor domain.
     homeDomain:
       isMoneyGram || shouldSendSep10HomeDomain() ? input.clientDomain : undefined,
-    clientDomain: input.clientDomain,
+    clientDomain: shouldSendClientDomainForAnchor(executionDomain)
+      ? input.clientDomain
+      : undefined,
   });
 
   return {
@@ -1093,9 +1250,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const phase = asString(parsed.value.phase) as ExecutePhase;
-  if (phase !== "prepare" && phase !== "authorize" && phase !== "status") {
+  if (
+    phase !== "prepare" &&
+    phase !== "authorize" &&
+    phase !== "status" &&
+    phase !== "submit_withdrawal"
+  ) {
     return res.status(400).json({
-      error: "Invalid phase. Use 'prepare', 'authorize', or 'status'.",
+      error:
+        "Invalid phase. Use 'prepare', 'authorize', 'status', or 'submit_withdrawal'.",
     });
   }
 
@@ -1137,14 +1300,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         isMoneyGramDomain(destinationAnchor.domain);
       const mustSendClientDomain =
         shouldSendSep10ClientDomain() || routeUsesMoneyGram;
-      if (mustSendClientDomain && !clientDomain) {
+      const originNeedsClientDomain = shouldSendClientDomainForAnchor(
+        originAnchor.domain
+      );
+      const destinationNeedsClientDomain = shouldSendClientDomainForAnchor(
+        destinationAnchor.domain
+      );
+      const needsClientDomain =
+        mustSendClientDomain ||
+        originNeedsClientDomain ||
+        destinationNeedsClientDomain;
+      if (needsClientDomain && !clientDomain) {
         return res.status(400).json({
           error:
             "Unable to resolve client_domain for SEP-10. Set SEP10_CLIENT_DOMAIN in API env.",
         });
       }
       if (
-        mustSendClientDomain &&
+        needsClientDomain &&
         getPopEnv() === "production" &&
         isLocalDomain(clientDomain)
       ) {
@@ -1154,9 +1327,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       if (
-        mustSendClientDomain &&
-        (shouldSignClientDomainForAnchor(originAnchor.domain) ||
-          shouldSignClientDomainForAnchor(destinationAnchor.domain)) &&
+        (originNeedsClientDomain || destinationNeedsClientDomain) &&
         !getClientDomainSigningSecret()
       ) {
         return res.status(400).json({
@@ -1187,7 +1358,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assetCode: originAssetCode,
           amount,
           account: senderAccount,
-          clientDomain: mustSendClientDomain
+          clientDomain: originNeedsClientDomain
             ? clientDomain
             : undefined,
         }),
@@ -1197,7 +1368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assetCode: destinationAssetCode,
           amount,
           account: senderAccount,
-          clientDomain: mustSendClientDomain
+          clientDomain: destinationNeedsClientDomain
             ? clientDomain
             : undefined,
         }),
@@ -1306,6 +1477,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    if (phase === "submit_withdrawal") {
+      const signedXdr = asString(parsed.value.signedXdr);
+      const network =
+        parsed.value.network === "mainnet" || parsed.value.network === "testnet"
+          ? parsed.value.network
+          : undefined;
+      const networkPassphrase = asString(parsed.value.networkPassphrase);
+      if (!signedXdr) {
+        return res.status(400).json({ error: "Missing field: signedXdr" });
+      }
+      if (!networkPassphrase) {
+        return res.status(400).json({ error: "Missing field: networkPassphrase" });
+      }
+
+      const submitted = await submitSignedTransaction({
+        signedXdr,
+        network,
+        networkPassphrase,
+      });
+      return res.status(200).json({
+        status: "submitted",
+        hash: submitted.hash,
+      });
+    }
+
     const prepared = parsed.value.prepared as PreparedTransferPayload | undefined;
     const signatures = parsed.value.signatures as Record<string, string> | undefined;
     const trustlineSignature = asString(parsed.value.trustlineSignature);
@@ -1399,6 +1595,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    const destinationHandle = statusHandles.find(
+      (handle) => handle.role === "destination"
+    );
+    const destinationAnchor = prepared.anchors.find(
+      (anchor) => anchor.role === "destination"
+    );
+    const destinationStatus =
+      destinationHandle && destinationAnchor
+        ? await fetchSep24TransactionStatus(destinationHandle)
+        : undefined;
+    const withdrawalPayment =
+      destinationStatus && destinationAnchor
+        ? await prepareWithdrawalPayment({
+            account: destinationAnchor.account,
+            anchorName: destinationAnchor.anchorName,
+            network: destinationAnchor.network,
+            networkPassphrase: destinationAnchor.networkPassphrase,
+            assetCode: destinationAnchor.assetCode,
+            assetIssuer: destinationAnchor.assetIssuer,
+            status: destinationStatus,
+          })
+        : undefined;
+
     const statusRef = encryptStatusRef({
       transactionId: prepared.transactionId,
       createdAt: new Date().toISOString(),
@@ -1422,6 +1641,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           originDeposit: interactiveByRole.origin,
           destinationWithdraw: interactiveByRole.destination,
         },
+        withdrawalPayment,
       },
     });
   } catch (error) {

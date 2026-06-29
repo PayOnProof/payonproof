@@ -58,7 +58,7 @@ function SendPageContent() {
   const loadCountries = useCallback(async () => {
     try {
       setCountriesError(null);
-      const items = await fetchAnchorCountries("all");
+      const items = await fetchAnchorCountries("testnet");
       setCountries(items);
     } catch (error) {
       const message =
@@ -85,7 +85,7 @@ function SendPageContent() {
           origin,
           destination,
           amount: amt,
-          network: "all",
+          network: "testnet",
         });
 
         setRoutes(payload.routes ?? []);
@@ -210,7 +210,7 @@ function SendPageContent() {
                   from {originCountry?.name} to {destCountry?.name}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Asset and network can vary by route (see each row).
+                  Showing testnet routes only.
                 </p>
                 {searchError && (
                   <p className="mt-2 text-xs font-medium text-destructive">
