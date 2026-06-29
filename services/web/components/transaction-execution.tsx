@@ -263,8 +263,8 @@ export function TransactionExecution({
                   Anchor flows created successfully
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Complete both anchor steps to settle the remittance. Then verify the on-chain
-                  hash in the proof step.
+                  Complete the anchor steps to settle the remittance. POP will track
+                  anchor status and generate proof when the on-chain hash is available.
                 </p>
               </div>
             </div>

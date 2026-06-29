@@ -32,8 +32,24 @@ function normalizeHash(value: string): string {
   return value.trim();
 }
 
-async function verifyTransactionOnHorizon(hash: string): Promise<void> {
-  const { horizonUrl } = getStellarConfig();
+function resolveProofNetwork(value: unknown): "mainnet" | "testnet" {
+  return value === "testnet" ? "testnet" : "mainnet";
+}
+
+function explorerNetworkSegment(network: "mainnet" | "testnet"): string {
+  return network === "testnet" ? "testnet" : "public";
+}
+
+function horizonUrlForNetwork(network: "mainnet" | "testnet"): string {
+  if (network === "testnet") return "https://horizon-testnet.stellar.org";
+  return getStellarConfig().horizonUrl;
+}
+
+async function verifyTransactionOnHorizon(
+  hash: string,
+  network: "mainnet" | "testnet"
+): Promise<void> {
+  const horizonUrl = horizonUrlForNetwork(network);
   const endpoint = `${horizonUrl.replace(/\/+$/, "")}/transactions/${encodeURIComponent(
     hash
   )}`;
@@ -76,6 +92,7 @@ export default async function handler(
 
   const transactionId = asString(parsed.value.transactionId);
   const stellarTxHash = normalizeHash(asString(parsed.value.stellarTxHash));
+  const network = resolveProofNetwork(parsed.value.network);
 
   if (!transactionId) {
     return res.status(400).json({ error: "Missing field: transactionId" });
@@ -85,7 +102,7 @@ export default async function handler(
   }
 
   try {
-    await verifyTransactionOnHorizon(stellarTxHash);
+    await verifyTransactionOnHorizon(stellarTxHash, network);
 
     return res.status(200).json({
       proof: {
@@ -102,8 +119,11 @@ export default async function handler(
         totalFees: asNumber(parsed.value.totalFees) ?? 0,
         route: asString(parsed.value.route) || "Anchor route",
         stellarTxHash,
+        network,
         status: "verified",
-        verificationUrl: `https://stellar.expert/explorer/public/tx/${stellarTxHash}`,
+        verificationUrl: `https://stellar.expert/explorer/${explorerNetworkSegment(
+          network
+        )}/tx/${stellarTxHash}`,
       },
     });
   } catch (error) {

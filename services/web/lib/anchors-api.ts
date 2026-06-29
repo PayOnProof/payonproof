@@ -203,6 +203,7 @@ export async function authorizeTransfer(params: {
 export async function verifyProof(params: {
   transactionId: string;
   stellarTxHash: string;
+  network?: "mainnet" | "testnet";
   route: string;
   originAmount: number;
   originCurrency: string;
