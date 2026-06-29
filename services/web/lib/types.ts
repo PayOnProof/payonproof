@@ -50,6 +50,8 @@ export interface ProofOfPayment {
   totalFees: number;
   route: string;
   stellarTxHash: string;
+  network?: "mainnet" | "testnet";
+  verificationUrl?: string;
   status: "verified";
 }
 
