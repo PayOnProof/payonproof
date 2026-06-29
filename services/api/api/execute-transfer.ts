@@ -593,6 +593,12 @@ async function startSep24Interactive(input: {
       amount: String(input.amount),
     };
     if (attempt.assetIssuer) requestBody.asset_issuer = attempt.assetIssuer;
+    if (isMoneyGramSep24) {
+      requestBody.lang =
+        process.env.MONEYGRAM_LANG?.trim() ||
+        process.env.SEP24_LANG?.trim() ||
+        "en";
+    }
     // MoneyGram SEP-24 can reject non-numeric/custom memo values on interactive init.
     if (input.memo && !isMoneyGramSep24) requestBody.memo = input.memo;
     if (input.callbackUrl && callbackParam) requestBody[callbackParam] = input.callbackUrl;
@@ -629,6 +635,8 @@ async function startSep24Interactive(input: {
         }. request={asset_code:${requestBody.asset_code}${
           requestBody.asset_issuer ? `,asset_issuer:${requestBody.asset_issuer}` : ""
         },account:${requestBody.account},amount:${requestBody.amount}${
+          requestBody.lang ? `,lang:${requestBody.lang}` : ""
+        }${
           requestBody.memo ? `,memo:${requestBody.memo}` : ""
         },content_type:${transport.contentType}}`;
         continue;

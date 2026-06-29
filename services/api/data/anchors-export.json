@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T15:02:00.724Z",
+  "generatedAt": "2026-06-29T16:17:31.656Z",
   "source": "https://anchors.stellar.org/#verified-domains",
   "strategy": "directory-domain-sep",
   "homeUrl": "https://anchors.stellar.org/",
@@ -96,9 +96,9 @@
   ],
   "diagnostics": {
     "domainsTotal": 89,
-    "skippedNoSep": 20,
+    "skippedNoSep": 21,
     "skippedNoAssets": 0,
-    "failedToml": 61
+    "failedToml": 60
   },
   "anchors": [
     {
