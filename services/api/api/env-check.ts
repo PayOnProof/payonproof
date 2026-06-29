@@ -31,8 +31,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     nodeEnv: process.env.NODE_ENV ?? null,
     hasSupabaseUrl: Boolean(url),
     hasSupabaseServiceRoleKey: Boolean(key),
-    supabaseUrlPreview: url ? `${url.slice(0, 24)}...` : null,
-    supabaseServiceRolePreview: key ? `${key.slice(0, 16)}...` : null,
     webOrigin: webOrigin || null,
     sep10: {
       hasClientDomain: Boolean(sep10ClientDomain),

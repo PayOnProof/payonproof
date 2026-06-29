@@ -11,6 +11,15 @@ interface CountryRow {
   operationalAnchors: number;
 }
 
+function parseNetwork(value: unknown): "mainnet" | "testnet" | "all" | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "mainnet" || normalized === "testnet" || normalized === "all") {
+    return normalized;
+  }
+  return undefined;
+}
+
 const countryNames =
   typeof Intl !== "undefined" &&
   typeof (Intl as unknown as { DisplayNames?: unknown }).DisplayNames === "function"
@@ -31,7 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (req.query.includeNonOperational === "true" ||
         req.query.includeNonOperational === "1");
 
-    const anchors = await listActiveAnchors();
+    const network = parseNetwork(req.query?.network);
+    const anchors = await listActiveAnchors({ network });
     const grouped = new Map<string, CountryRow>();
 
     for (const anchor of anchors) {

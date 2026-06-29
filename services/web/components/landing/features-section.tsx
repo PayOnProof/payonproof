@@ -76,7 +76,7 @@ const TESTIMONIALS = [
 
 export function FeaturesSection() {
   const { ref: featRef, isVisible: featVisible } =
-    useAnimateOnScroll<HTMLElement>();
+    useAnimateOnScroll<HTMLDivElement>();
   const { ref: testRef, isVisible: testVisible } =
     useAnimateOnScroll<HTMLDivElement>({ threshold: 0.15 });
 

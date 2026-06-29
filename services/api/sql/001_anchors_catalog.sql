@@ -18,18 +18,3 @@ create index if not exists anchors_catalog_type_idx
 
 create index if not exists anchors_catalog_active_idx
   on public.anchors_catalog (active);
-
--- Seed minimal corridor US -> MX
-insert into public.anchors_catalog (id, name, domain, country, currency, type, active)
-values
-  ('anchor-moneygram-us', 'MoneyGram', 'stellar.moneygram.com', 'US', 'USD', 'on-ramp', true),
-  ('anchor-bitso-mx', 'Bitso', 'bitso.com', 'MX', 'MXN', 'off-ramp', true)
-on conflict (id) do update
-set
-  name = excluded.name,
-  domain = excluded.domain,
-  country = excluded.country,
-  currency = excluded.currency,
-  type = excluded.type,
-  active = excluded.active,
-  updated_at = now();

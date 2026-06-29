@@ -8,6 +8,14 @@ function getQueryParam(url: string | undefined, key: string): string | undefined
   return value?.trim() ? value.trim() : undefined;
 }
 
+function parseNetwork(value: string | undefined): "mainnet" | "testnet" | "all" | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "mainnet" || normalized === "testnet" || normalized === "all") {
+    return normalized;
+  }
+  return undefined;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -17,8 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const countryFilter = getQueryParam(req.url, "country")?.toUpperCase();
     const typeFilter = getQueryParam(req.url, "type");
     const operationalOnly = getQueryParam(req.url, "operationalOnly") === "true";
+    const network = parseNetwork(getQueryParam(req.url, "network"));
 
-    const anchors = await listActiveAnchors();
+    const anchors = await listActiveAnchors({ network });
     const filtered = anchors.filter((anchor) => {
       if (countryFilter && anchor.country !== countryFilter) return false;
       if (
@@ -38,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         id: anchor.id,
         name: anchor.name,
         domain: anchor.domain,
+        network: anchor.network,
         country: anchor.country,
         currency: anchor.currency,
         type: anchor.type,

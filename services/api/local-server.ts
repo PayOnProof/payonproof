@@ -24,9 +24,7 @@ function loadLocalEnvFiles() {
       const key = line.slice(0, idx).trim();
       const value = line.slice(idx + 1).trim();
       if (!key) continue;
-      if (process.env[key] === undefined || process.env[key] === "") {
-        process.env[key] = value;
-      }
+      process.env[key] = value;
     }
   }
 }
@@ -34,15 +32,36 @@ function loadLocalEnvFiles() {
 loadLocalEnvFiles();
 
 const PORT = Number(process.env.PORT ?? 3001);
-const ALLOWED_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 const ROUTE_EXT =
   process.env.LOCAL_SERVER_ROUTE_EXT?.trim() ||
   (import.meta.url.endsWith(".js") ? ".js" : ".ts");
 
-function setCorsHeaders(res: ServerResponse) {
-  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+function parseAllowedOrigins(): string[] {
+  const explicit = process.env.CORS_ALLOWED_ORIGINS?.trim() ?? "";
+  const fallback = process.env.WEB_ORIGIN?.trim() ?? "";
+  const raw = explicit || fallback || "http://localhost:3000";
+  return raw
+    .split(/[,\s]+/g)
+    .map((item) => item.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+}
+
+function resolveAllowedOrigin(req: IncomingMessage): string {
+  const requestOrigin = String(req.headers.origin ?? "").trim().replace(/\/+$/, "");
+  const allowed = parseAllowedOrigins();
+  if (requestOrigin && allowed.includes(requestOrigin)) return requestOrigin;
+  return allowed[0] ?? requestOrigin ?? "*";
+}
+
+function setCorsHeaders(req: IncomingMessage, res: ServerResponse) {
+  res.setHeader("Access-Control-Allow-Origin", resolveAllowedOrigin(req));
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, X-Admin-Secret, X-Cron-Secret"
+  );
 }
 
 const routeMap: Record<string, string> = {
@@ -52,8 +71,12 @@ const routeMap: Record<string, string> = {
   "POST /api/compare-routes": `./api/compare-routes${ROUTE_EXT}`,
   "POST /api/execute-transfer": `./api/execute-transfer${ROUTE_EXT}`,
   "POST /api/generate-proof": `./api/generate-proof${ROUTE_EXT}`,
-  "GET /api/test-db": `./api/test-db${ROUTE_EXT}`,
   "POST /api/anchors/diagnostics": `./api/anchors/diagnostics${ROUTE_EXT}`,
+  "POST /api/admin/login": `./api/admin/login${ROUTE_EXT}`,
+  "GET /api/admin/session": `./api/admin/session${ROUTE_EXT}`,
+  "POST /api/admin/logout": `./api/admin/logout${ROUTE_EXT}`,
+  "GET /api/admin/anchors": `./api/admin/anchors${ROUTE_EXT}`,
+  "POST /api/admin/anchors": `./api/admin/anchors${ROUTE_EXT}`,
   "GET /api/anchors/ops": `./api/anchors/ops${ROUTE_EXT}`,
   "POST /api/anchors/ops": `./api/anchors/ops${ROUTE_EXT}`,
   "POST /api/anchors/sep24/callback": `./api/anchors/sep24/callback${ROUTE_EXT}`,
@@ -79,7 +102,6 @@ async function readJson(req: IncomingMessage) {
 
 function createVercelResponse(res: ServerResponse) {
   let statusCode = 200;
-  setCorsHeaders(res);
   return {
     status(code: number) {
       statusCode = code;
@@ -106,7 +128,7 @@ const server = http.createServer(async (req, res) => {
   const method = req.method ?? "GET";
   const path = (req.url ?? "").split("?")[0];
 
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
   if (method === "OPTIONS") {
     res.statusCode = 204;
     res.end();

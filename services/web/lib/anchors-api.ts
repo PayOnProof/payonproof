@@ -21,8 +21,12 @@ async function readApiPayload<T>(response: Response, endpoint: string): Promise<
   }
 }
 
-export async function fetchAnchorCountries(): Promise<AnchorCountry[]> {
-  const endpoint = apiUrl("/api/anchors/countries");
+export type AnchorNetworkFilter = "testnet" | "mainnet" | "all";
+
+export async function fetchAnchorCountries(
+  network: AnchorNetworkFilter = "testnet"
+): Promise<AnchorCountry[]> {
+  const endpoint = apiUrl(`/api/anchors/countries?network=${network}`);
   const response = await fetch(endpoint, {
     method: "GET",
     headers: { Accept: "application/json" },
@@ -45,6 +49,7 @@ export async function compareRoutes(params: {
   origin: string;
   destination: string;
   amount: number;
+  network?: AnchorNetworkFilter;
 }): Promise<{ routes: RemittanceRoute[]; noRouteReason?: string }> {
   const endpoint = apiUrl("/api/compare-routes");
   const response = await fetch(endpoint, {

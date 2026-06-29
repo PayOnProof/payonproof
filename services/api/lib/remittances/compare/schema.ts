@@ -14,6 +14,12 @@ export function parseCompareRoutesInput(payload: Record<string, unknown>): {
     typeof payload.amount === "number"
       ? payload.amount
       : Number(payload.amount ?? 0);
+  const networkRaw =
+    typeof payload.network === "string" ? payload.network.trim().toLowerCase() : "";
+  const network =
+    networkRaw === "mainnet" || networkRaw === "testnet" || networkRaw === "all"
+      ? networkRaw
+      : undefined;
 
   if (!origin || !destination || !Number.isFinite(amount) || amount <= 0) {
     return {
@@ -24,6 +30,6 @@ export function parseCompareRoutesInput(payload: Record<string, unknown>): {
 
   return {
     ok: true,
-    value: { origin, destination, amount },
+    value: { origin, destination, amount, network },
   };
 }

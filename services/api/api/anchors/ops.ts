@@ -63,6 +63,30 @@ function getQueryValue(req: VercelRequest, key: string): string | undefined {
   return value?.trim() || undefined;
 }
 
+function getHeaderValue(req: VercelRequest, key: string): string {
+  const raw = req.headers[key.toLowerCase()];
+  if (Array.isArray(raw)) return raw[0] ?? "";
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+function isOpsAuthorized(req: VercelRequest): boolean {
+  const adminSecret = process.env.ADMIN_SECRET?.trim() ?? "";
+  const cronSecret = process.env.CRON_SECRET?.trim() ?? "";
+  if (!adminSecret && !cronSecret && process.env.NODE_ENV !== "production") return true;
+
+  const provided =
+    getHeaderValue(req, "x-admin-secret") ||
+    getHeaderValue(req, "x-cron-secret") ||
+    getHeaderValue(req, "authorization").replace(/^Bearer\s+/i, "") ||
+    getQueryValue(req, "secret") ||
+    "";
+
+  return Boolean(
+    (adminSecret && provided === adminSecret) ||
+      (cronSecret && provided === cronSecret)
+  );
+}
+
 function parseLimit(input: string | undefined, fallback: number): number {
   const parsed = Number(input);
   if (!Number.isFinite(parsed)) return fallback;
@@ -626,6 +650,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    if (!isOpsAuthorized(req)) {
+      return res.status(401).json({
+        error: "Unauthorized ops request. Provide ADMIN_SECRET or CRON_SECRET.",
+      });
+    }
+
     if (action === "import_directory") {
       return await handleImportDirectory(body, res);
     }

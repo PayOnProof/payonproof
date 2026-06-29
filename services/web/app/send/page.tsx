@@ -9,7 +9,10 @@ import { RouteCard } from "@/components/route-card";
 import { TransactionExecution } from "@/components/transaction-execution";
 import { ProofOfPaymentView } from "@/components/proof-of-payment";
 import type { AnchorCountry, RemittanceRoute, Transaction } from "@/lib/types";
-import { compareRoutes, fetchAnchorCountries } from "@/lib/anchors-api";
+import {
+  compareRoutes,
+  fetchAnchorCountries,
+} from "@/lib/anchors-api";
 import { WalletProvider } from "@/lib/wallet-context";
 import {
   ArrowLeft,
@@ -24,6 +27,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type AppStep = "search" | "routes" | "execute" | "proof";
+
+function isSameRouteProvider(route: RemittanceRoute) {
+  return (
+    route.originAnchor.name.trim().toLowerCase() ===
+    route.destinationAnchor.name.trim().toLowerCase()
+  );
+}
 
 function SendPageContent() {
   const [countries, setCountries] = useState<AnchorCountry[]>([]);
@@ -48,7 +58,7 @@ function SendPageContent() {
   const loadCountries = useCallback(async () => {
     try {
       setCountriesError(null);
-      const items = await fetchAnchorCountries();
+      const items = await fetchAnchorCountries("all");
       setCountries(items);
     } catch (error) {
       const message =
@@ -75,6 +85,7 @@ function SendPageContent() {
           origin,
           destination,
           amount: amt,
+          network: "all",
         });
 
         setRoutes(payload.routes ?? []);
@@ -93,10 +104,7 @@ function SendPageContent() {
   );
 
   const handleSelectRoute = useCallback((route: RemittanceRoute) => {
-    const isMoneyGramRoute =
-      route.originAnchor.name.toLowerCase().includes("moneygram") &&
-      route.destinationAnchor.name.toLowerCase().includes("moneygram");
-    if (!route.available || !isMoneyGramRoute) return;
+    if (!route.available) return;
     setSelectedRoute(route);
     setStep("execute");
   }, []);
@@ -134,7 +142,6 @@ function SendPageContent() {
     { value: "cheapest", label: "Cheapest", icon: TrendingDown },
     { value: "fastest", label: "Fastest", icon: Timer },
   ] as const;
-
   return (
     <div className="relative min-h-screen bg-background">
       <GradientMesh />
@@ -203,7 +210,7 @@ function SendPageContent() {
                   from {originCountry?.name} to {destCountry?.name}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Asset can vary by route (see each row).
+                  Asset and network can vary by route (see each row).
                 </p>
                 {searchError && (
                   <p className="mt-2 text-xs font-medium text-destructive">
@@ -300,10 +307,8 @@ function SendPageContent() {
                   </thead>
                   <tbody>
                     {sortedRoutes.map((route) => {
-                      const moneyGramOnly =
-                        route.originAnchor.name.toLowerCase().includes("moneygram") &&
-                        route.destinationAnchor.name.toLowerCase().includes("moneygram");
-                      const selectable = route.available && moneyGramOnly;
+                      const selectable = route.available;
+                      const sameProvider = isSameRouteProvider(route);
                       return (
                       <tr
                         key={route.id}
@@ -319,13 +324,39 @@ function SendPageContent() {
                             {route.recommended && (
                               <Zap className="h-3.5 w-3.5 shrink-0 text-primary" />
                             )}
-                            <span className="font-semibold text-foreground">
-                              {route.originAnchor.name}
+                            <span
+                              className={cn(
+                                "rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase",
+                                route.network === "testnet"
+                                  ? "border-primary/30 text-primary"
+                                  : "border-success/30 text-success"
+                              )}
+                            >
+                              {route.network}
                             </span>
-                            <span className="text-muted-foreground">{">"}</span>
-                            <span className="font-semibold text-foreground">
-                              {route.destinationAnchor.name}
-                            </span>
+                            {sameProvider ? (
+                              <div className="flex min-w-0 flex-col">
+                                <span className="font-semibold text-foreground">
+                                  {route.originAnchor.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {route.originAnchor.country} /{" "}
+                                  {route.originAnchor.currency} {"->"}{" "}
+                                  {route.destinationAnchor.country} /{" "}
+                                  {route.destinationAnchor.currency}
+                                </span>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="font-semibold text-foreground">
+                                  {route.originAnchor.name}
+                                </span>
+                                <span className="text-muted-foreground">{">"}</span>
+                                <span className="font-semibold text-foreground">
+                                  {route.destinationAnchor.name}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -395,11 +426,9 @@ function SendPageContent() {
                     route={route}
                     onSelect={handleSelectRoute}
                     selectable={
-                      route.available &&
-                      route.originAnchor.name.toLowerCase().includes("moneygram") &&
-                      route.destinationAnchor.name.toLowerCase().includes("moneygram")
+                      route.available
                     }
-                    selectionHint="Only MoneyGram routes are selectable right now"
+                    selectionHint="Route is not execution-ready"
                     index={i}
                   />
                 ))}
@@ -467,7 +496,7 @@ function SendPageContent() {
           />
           <p className="text-center text-xs text-muted-foreground">
             POP uses Stellar as invisible infrastructure. KYC and compliance are
-            handled by anchors. This is an MVP demo.
+            handled by Stellar anchors.
           </p>
         </div>
       </footer>

@@ -1,0 +1,8 @@
+[
+  {
+    "name": "MoneyGram Testnet",
+    "domain": "extstellar.moneygram.com",
+    "countries": ["US", "CR", "CO", "MX", "AR", "BR", "CL", "PE", "PA", "EC"],
+    "currencies": ["USDC"]
+  }
+]

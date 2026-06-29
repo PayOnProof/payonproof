@@ -247,9 +247,11 @@ function buildRoute(
 
   return {
     id: `route-${originAnchor.catalog.id}-${destinationAnchor.catalog.id}-${Date.now()}`,
+    network: originAnchor.catalog.network === "testnet" ? "testnet" : "mainnet",
     originAnchor: {
       id: originAnchor.catalog.id,
       name: originAnchor.catalog.name,
+      network: originAnchor.catalog.network === "testnet" ? "testnet" : "mainnet",
       country: originAnchor.catalog.country,
       currency: originAnchor.catalog.currency,
       type: "on-ramp",
@@ -259,6 +261,7 @@ function buildRoute(
     destinationAnchor: {
       id: destinationAnchor.catalog.id,
       name: destinationAnchor.catalog.name,
+      network: destinationAnchor.catalog.network === "testnet" ? "testnet" : "mainnet",
       country: destinationAnchor.catalog.country,
       currency: destinationAnchor.catalog.currency,
       type: "off-ramp",
@@ -292,6 +295,7 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
   const anchors = await getAnchorsForCorridor({
     origin: input.origin,
     destination: input.destination,
+    network: input.network,
   });
 
   const runtimes = await Promise.all(anchors.map(resolveAnchorRuntime));
@@ -308,22 +312,26 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
       r.operational
   );
 
-  let exchangeRate: number | undefined;
-  if (originAnchors.length > 0 && destinationAnchors.length > 0) {
-    exchangeRate = await getFxRate(
-      originAnchors[0].catalog.currency,
-      destinationAnchors[0].catalog.currency
-    );
-  }
-
   const routes: RemittanceRoute[] = [];
-  if (exchangeRate !== undefined) {
-    for (const originAnchor of originAnchors) {
-      for (const destinationAnchor of destinationAnchors) {
-        routes.push(
-          buildRoute(input, originAnchor, destinationAnchor, exchangeRate)
+  const fxCache = new Map<string, number>();
+  for (const originAnchor of originAnchors) {
+    for (const destinationAnchor of destinationAnchors) {
+      const originNetwork =
+        originAnchor.catalog.network === "testnet" ? "testnet" : "mainnet";
+      const destinationNetwork =
+        destinationAnchor.catalog.network === "testnet" ? "testnet" : "mainnet";
+      if (originNetwork !== destinationNetwork) continue;
+
+      const fxKey = `${originAnchor.catalog.currency}:${destinationAnchor.catalog.currency}`;
+      let exchangeRate = fxCache.get(fxKey);
+      if (exchangeRate === undefined) {
+        exchangeRate = await getFxRate(
+          originAnchor.catalog.currency,
+          destinationAnchor.catalog.currency
         );
+        fxCache.set(fxKey, exchangeRate);
       }
+      routes.push(buildRoute(input, originAnchor, destinationAnchor, exchangeRate));
     }
   }
 
@@ -335,6 +343,7 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
       origin: input.origin,
       destination: input.destination,
       amount: input.amount,
+      network: input.network ?? "current",
       queriedAt: new Date().toISOString(),
       anchorDiagnostics: runtimes.map((r) => ({
         anchorId: r.catalog.id,

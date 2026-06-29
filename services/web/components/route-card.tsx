@@ -60,6 +60,9 @@ export function RouteCard({
 
   const originStatus = STATUS_CONFIG[route.originAnchor.status];
   const destStatus = STATUS_CONFIG[route.destinationAnchor.status];
+  const sameProvider =
+    route.originAnchor.name.trim().toLowerCase() ===
+    route.destinationAnchor.name.trim().toLowerCase();
 
   return (
     <Card
@@ -88,63 +91,105 @@ export function RouteCard({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: anchor pathway + badges + metrics */}
           <div className="flex flex-1 flex-col gap-4">
+            <Badge
+              variant="outline"
+              className={cn(
+                "w-fit text-[10px] font-bold uppercase",
+                route.network === "testnet"
+                  ? "border-primary/30 text-primary"
+                  : "border-success/30 text-success"
+              )}
+            >
+              {route.network}
+            </Badge>
+
             {/* Anchor pathway */}
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
-                <CircleDot className="h-4 w-4 shrink-0 text-primary" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">
-                    {route.originAnchor.name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {route.originAnchor.country} / {route.originAnchor.currency}
-                  </span>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "ml-1 gap-1 text-[9px] px-1.5 py-0",
-                    originStatus.className
-                  )}
-                >
-                  <span
+              {sameProvider ? (
+                <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
+                  <CircleDot className="h-4 w-4 shrink-0 text-primary" />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-bold text-foreground">
+                      {route.originAnchor.name}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {route.originAnchor.country} / {route.originAnchor.currency}{" "}
+                      {"->"} {route.destinationAnchor.country} /{" "}
+                      {route.destinationAnchor.currency}
+                    </span>
+                  </div>
+                  <Badge
+                    variant="outline"
                     className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      originStatus.dot
+                      "ml-1 gap-1 px-1.5 py-0 text-[9px]",
+                      originStatus.className
                     )}
-                  />
-                  {originStatus.label}
-                </Badge>
-              </div>
-
-              <div className="ml-4 flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 sm:ml-0 sm:h-8 sm:w-8">
-                <ArrowRight className="h-3 w-3 text-muted-foreground sm:h-3.5 sm:w-3.5" />
-              </div>
-
-              <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
-                <CircleDot className="h-4 w-4 shrink-0 text-success" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">
-                    {route.destinationAnchor.name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {route.destinationAnchor.country} /{" "}
-                    {route.destinationAnchor.currency}
-                  </span>
+                  >
+                    <span
+                      className={cn("h-1.5 w-1.5 rounded-full", originStatus.dot)}
+                    />
+                    {originStatus.label}
+                  </Badge>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "ml-1 gap-1 text-[9px] px-1.5 py-0",
-                    destStatus.className
-                  )}
-                >
-                  <span
-                    className={cn("h-1.5 w-1.5 rounded-full", destStatus.dot)}
-                  />
-                  {destStatus.label}
-                </Badge>
-              </div>
+              ) : (
+                <>
+                  <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
+                    <CircleDot className="h-4 w-4 shrink-0 text-primary" />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-foreground">
+                        {route.originAnchor.name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {route.originAnchor.country} / {route.originAnchor.currency}
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "ml-1 gap-1 px-1.5 py-0 text-[9px]",
+                        originStatus.className
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          originStatus.dot
+                        )}
+                      />
+                      {originStatus.label}
+                    </Badge>
+                  </div>
+
+                  <div className="ml-4 flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 sm:ml-0 sm:h-8 sm:w-8">
+                    <ArrowRight className="h-3 w-3 text-muted-foreground sm:h-3.5 sm:w-3.5" />
+                  </div>
+
+                  <div className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:px-3.5">
+                    <CircleDot className="h-4 w-4 shrink-0 text-success" />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-foreground">
+                        {route.destinationAnchor.name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {route.destinationAnchor.country} /{" "}
+                        {route.destinationAnchor.currency}
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "ml-1 gap-1 px-1.5 py-0 text-[9px]",
+                        destStatus.className
+                      )}
+                    >
+                      <span
+                        className={cn("h-1.5 w-1.5 rounded-full", destStatus.dot)}
+                      />
+                      {destStatus.label}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Key metric pills */}

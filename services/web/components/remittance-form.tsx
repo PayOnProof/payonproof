@@ -30,10 +30,12 @@ export function RemittanceForm({ countries, onSearch, loading }: RemittanceFormP
 
   useEffect(() => {
     if (!countries.length) return;
-    if (!origin) {
+    const hasOrigin = countries.some((country) => country.code === origin);
+    const hasDestination = countries.some((country) => country.code === destination);
+    if (!origin || !hasOrigin) {
       setOrigin(defaultOrigin);
     }
-    if (!destination) {
+    if (!destination || !hasDestination || destination === defaultOrigin) {
       setDestination(defaultDestination);
     }
   }, [countries, origin, destination, defaultOrigin, defaultDestination]);

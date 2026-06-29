@@ -2,15 +2,18 @@ export interface CompareRoutesInput {
   origin: string;
   destination: string;
   amount: number;
+  network?: "mainnet" | "testnet" | "all";
 }
 
 export interface AnchorCatalogEntry {
   id: string;
   name: string;
   domain: string;
+  network?: "mainnet" | "testnet";
   country: string;
   currency: string;
   type: "on-ramp" | "off-ramp";
+  active: boolean;
   capabilities: {
     sep24: boolean;
     sep6: boolean;
@@ -54,9 +57,11 @@ export interface AnchorRuntime {
 
 export interface RemittanceRoute {
   id: string;
+  network: "mainnet" | "testnet";
   originAnchor: {
     id: string;
     name: string;
+    network: "mainnet" | "testnet";
     country: string;
     currency: string;
     type: "on-ramp";
@@ -66,6 +71,7 @@ export interface RemittanceRoute {
   destinationAnchor: {
     id: string;
     name: string;
+    network: "mainnet" | "testnet";
     country: string;
     currency: string;
     type: "off-ramp";
