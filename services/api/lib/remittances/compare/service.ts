@@ -252,7 +252,10 @@ function buildRoute(
       id: originAnchor.catalog.id,
       name: originAnchor.catalog.name,
       network: originAnchor.catalog.network === "testnet" ? "testnet" : "mainnet",
-      country: originAnchor.catalog.country,
+      country:
+        originAnchor.catalog.country === "ZZ"
+          ? input.origin
+          : originAnchor.catalog.country,
       currency: originAnchor.catalog.currency,
       type: "on-ramp",
       status: originAnchor.operational ? "operational" : "offline",
@@ -262,7 +265,10 @@ function buildRoute(
       id: destinationAnchor.catalog.id,
       name: destinationAnchor.catalog.name,
       network: destinationAnchor.catalog.network === "testnet" ? "testnet" : "mainnet",
-      country: destinationAnchor.catalog.country,
+      country:
+        destinationAnchor.catalog.country === "ZZ"
+          ? input.destination
+          : destinationAnchor.catalog.country,
       currency: destinationAnchor.catalog.currency,
       type: "off-ramp",
       status: destinationAnchor.operational ? "operational" : "offline",
@@ -296,6 +302,13 @@ function isSameAnchorTestRoute(route: RemittanceRoute): boolean {
     route.network === "testnet" &&
     route.originAnchor.name === route.destinationAnchor.name &&
     route.originCurrency === route.destinationCurrency
+  );
+}
+
+function anchorMatchesCountry(anchor: AnchorRuntime, country: string): boolean {
+  return (
+    anchor.catalog.country === country ||
+    (anchor.catalog.network === "testnet" && anchor.catalog.country === "ZZ")
   );
 }
 
@@ -350,13 +363,13 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
   const originAnchors = runtimes.filter(
     (r) =>
       r.catalog.type === "on-ramp" &&
-      r.catalog.country === input.origin &&
+      anchorMatchesCountry(r, input.origin) &&
       r.operational
   );
   const destinationAnchors = runtimes.filter(
     (r) =>
       r.catalog.type === "off-ramp" &&
-      r.catalog.country === input.destination &&
+      anchorMatchesCountry(r, input.destination) &&
       r.operational
   );
 

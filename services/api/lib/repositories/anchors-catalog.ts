@@ -307,7 +307,7 @@ export async function getAnchorsForCorridor(input: {
         "id,name,domain,network,country,currency,type,active,sep24,sep6,sep31,sep10,operational,fee_fixed,fee_percent,fee_source,transfer_server_sep24,transfer_server_sep6,web_auth_endpoint,direct_payment_server,kyc_server,last_checked_at,diagnostics"
       )
       .eq("active", true)
-      .in("country", [input.origin, input.destination])
+      .in("country", [input.origin, input.destination, "ZZ"])
       .in("type", ["on-ramp", "off-ramp"]);
 
     if (input.network === "mainnet" || input.network === "testnet") {
@@ -332,7 +332,9 @@ export async function getAnchorsForCorridor(input: {
     return filterAnchors(
       fallback.filter(
         (anchor) =>
-          anchor.country === input.origin || anchor.country === input.destination
+          anchor.country === input.origin ||
+          anchor.country === input.destination ||
+          anchor.country === "ZZ"
       )
     );
   }
