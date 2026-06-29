@@ -609,10 +609,12 @@ async function startSep24Interactive(input: {
         body: JSON.stringify(requestBody),
       },
     ];
-    transportAttempts.push({
-      contentType: "application/x-www-form-urlencoded",
-      body: new URLSearchParams(requestBody).toString(),
-    });
+    if (!isMoneyGramSep24) {
+      transportAttempts.push({
+        contentType: "application/x-www-form-urlencoded",
+        body: new URLSearchParams(requestBody).toString(),
+      });
+    }
 
     for (const transport of transportAttempts) {
       const response = await fetch(endpoint, {
