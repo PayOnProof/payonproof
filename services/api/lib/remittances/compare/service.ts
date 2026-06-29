@@ -291,6 +291,54 @@ function buildRoute(
   };
 }
 
+function isSameAnchorTestRoute(route: RemittanceRoute): boolean {
+  return (
+    route.network === "testnet" &&
+    route.originAnchor.name === route.destinationAnchor.name &&
+    route.originCurrency === route.destinationCurrency
+  );
+}
+
+function selectRoutePortfolio(
+  scoredRoutes: RemittanceRoute[],
+  maxRoutes: number
+): RemittanceRoute[] {
+  const selected = scoredRoutes.slice(0, maxRoutes);
+  if (selected.length < maxRoutes) return selected;
+
+  const selectedIds = new Set(selected.map((route) => route.id));
+  const selectedSameAnchorNames = new Set(
+    selected
+      .filter(isSameAnchorTestRoute)
+      .map((route) => route.originAnchor.name)
+  );
+
+  const missingSameAnchorRoutes = scoredRoutes.filter(
+    (route) =>
+      isSameAnchorTestRoute(route) &&
+      !selectedIds.has(route.id) &&
+      !selectedSameAnchorNames.has(route.originAnchor.name)
+  );
+
+  for (const route of missingSameAnchorRoutes) {
+    let replaceIndex = -1;
+    for (let index = selected.length - 1; index >= 0; index -= 1) {
+      const candidate = selected[index];
+      if (!candidate.recommended && !isSameAnchorTestRoute(candidate)) {
+        replaceIndex = index;
+        break;
+      }
+    }
+    if (replaceIndex < 0) break;
+    selectedIds.delete(selected[replaceIndex].id);
+    selected[replaceIndex] = route;
+    selectedIds.add(route.id);
+    selectedSameAnchorNames.add(route.originAnchor.name);
+  }
+
+  return selected;
+}
+
 export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
   const anchors = await getAnchorsForCorridor({
     origin: input.origin,
@@ -335,7 +383,7 @@ export async function compareRoutesWithAnchors(input: CompareRoutesInput) {
     }
   }
 
-  const scored = scoreRoutes(routes).slice(0, MAX_ROUTES);
+  const scored = selectRoutePortfolio(scoreRoutes(routes), MAX_ROUTES);
 
   return {
     routes: scored,

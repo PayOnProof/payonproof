@@ -59,7 +59,10 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
   try {
     return await fetch(url, {
       method: "GET",
-      headers: { Accept: "text/plain, text/x-toml, application/toml" },
+      headers: {
+        Accept: "text/plain, text/x-toml, application/toml, */*",
+        "User-Agent": "PayOnProof SEP-1 resolver",
+      },
       signal: controller.signal,
     });
   } finally {
