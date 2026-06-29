@@ -568,10 +568,6 @@ async function startSep24Interactive(input: {
   const attempts: Array<{ assetCode: string; assetIssuer?: string }> = [];
   if (isMoneyGramSep24 && input.assetCode.toUpperCase() === "USDC") {
     attempts.push({ assetCode: input.assetCode });
-    if (input.assetIssuer) {
-      attempts.push({ assetCode: input.assetCode, assetIssuer: input.assetIssuer });
-      attempts.push({ assetCode: `${input.assetCode}:${input.assetIssuer}` });
-    }
   } else {
     attempts.push({ assetCode: input.assetCode, assetIssuer: input.assetIssuer });
     if (input.assetIssuer) {
