@@ -42,6 +42,7 @@ interface PreparedAnchorAuth {
   anchorId: string;
   anchorName: string;
   domain: string;
+  network?: "mainnet" | "testnet";
   assetCode: string;
   assetIssuer?: string;
   amount: number;
@@ -545,6 +546,7 @@ async function startSep24Interactive(input: {
   transferServerSep24: string;
   token: string;
   operation: "deposit" | "withdraw";
+  network?: "mainnet" | "testnet";
   assetCode: string;
   assetIssuer?: string;
   account: string;
@@ -592,7 +594,10 @@ async function startSep24Interactive(input: {
       requestBody.asset_code.toUpperCase() === "USDC" &&
       !requestBody.asset_issuer
     ) {
-      requestBody.asset_issuer = resolveMoneyGramUsdcIssuer();
+      requestBody.asset_issuer = resolveMoneyGramUsdcIssuer({
+        network: input.network,
+        domain: transferServer,
+      });
     }
     // MoneyGram SEP-24 can reject non-numeric/custom memo values on interactive init.
     if (input.memo && !isMoneyGramSep24) requestBody.memo = input.memo;
@@ -760,10 +765,19 @@ function resolveMoneyGramUserMemo(): string | undefined {
   return String(parsed);
 }
 
-function resolveMoneyGramUsdcIssuer(): string {
+function resolveMoneyGramUsdcIssuer(input?: {
+  network?: "mainnet" | "testnet";
+  domain?: string;
+}): string {
   const explicit = process.env.MONEYGRAM_USDC_ISSUER?.trim();
   if (explicit) return explicit;
-  if (getPopEnv() === "staging") {
+  const normalizedDomain = input?.domain ? toHostname(input.domain) : "";
+  const isTestnet =
+    input?.network === "testnet" ||
+    normalizedDomain === "extstellar.moneygram.com" ||
+    getPopEnv() === "staging" ||
+    getPopEnv() === "testnet";
+  if (isTestnet) {
     // MoneyGram Sandbox/Testnet USDC issuer
     return "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
   }
@@ -896,7 +910,10 @@ async function prepareAnchorAuth(input: {
   }
 
   if (isMoneyGram && effectiveAssetCode === "USDC" && !effectiveAssetIssuer) {
-    effectiveAssetIssuer = resolveMoneyGramUsdcIssuer();
+    effectiveAssetIssuer = resolveMoneyGramUsdcIssuer({
+      network: input.anchor.network,
+      domain: executionDomain,
+    });
   }
 
   const challenge = await fetchSep10Challenge({
@@ -914,6 +931,7 @@ async function prepareAnchorAuth(input: {
     anchorId: input.anchor.id,
     anchorName: input.anchor.name,
     domain: executionDomain,
+    network: input.anchor.network,
     assetCode: effectiveAssetCode,
     assetIssuer: effectiveAssetIssuer,
     amount: input.amount,
@@ -1197,6 +1215,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         transferServerSep24: anchor.transferServerSep24,
         token,
         operation,
+        network: anchor.network,
         assetCode: anchor.assetCode,
         assetIssuer: anchor.assetIssuer,
         account: anchor.account,

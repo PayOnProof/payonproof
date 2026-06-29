@@ -1,0 +1,8 @@
+VERSION = "2.0.0"
+SIGNING_KEY = "GBL7NL4SBZLJRPRES7EHYFZLGBPZF47HLFDRRK7TN5YV5BTGFOZTMCFN"
+
+[DOCUMENTATION]
+ORG_NAME = "PayOnProof"
+ORG_URL = "https://payonproof.vercel.app"
+ORG_DESCRIPTION = "PayOnProof API domain for SEP-10 client_domain authentication."
+ORG_SUPPORT_EMAIL = "web2@cnet.co.cr"
