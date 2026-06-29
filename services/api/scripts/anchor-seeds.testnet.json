@@ -9,7 +9,7 @@
     "name": "SDF Test Anchor",
     "domain": "testanchor.stellar.org",
     "countries": ["US", "CR", "ZZ"],
-    "currencies": ["USDC", "XLM", "SRT"]
+    "currencies": ["USDC"]
   },
   {
     "name": "OwlPay Harbor Stage",

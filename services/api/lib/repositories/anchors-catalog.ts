@@ -133,6 +133,13 @@ function normalizeDomainForFilter(domain: string): string {
 }
 
 function isAnchorAllowed(anchor: AnchorCatalogEntry): boolean {
+  if (
+    normalizeDomainForFilter(anchor.domain) === "testanchor.stellar.org" &&
+    normalizeAssetCode(anchor.currency) !== "USDC"
+  ) {
+    return false;
+  }
+
   const allowedAssets = parseAllowedAssets();
   if (allowedAssets && !allowedAssets.has(normalizeAssetCode(anchor.currency))) {
     return false;
