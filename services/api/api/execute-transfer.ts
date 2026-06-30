@@ -1497,7 +1497,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const completed = results.some((item) => {
         if (!item.ok || !item.status) return false;
         const normalized = item.status.toLowerCase();
-        return normalized.includes("complete") || normalized.includes("completed");
+        return normalized === "complete" || normalized === "completed";
       });
 
       return res.status(200).json({
